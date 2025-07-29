@@ -42,7 +42,7 @@ func (g *GinExtractor) FindRootRouters(pkgs []*packages.Package) []types.Object 
 							for _, name := range valueSpec.Names {
 								if obj := pkg.TypesInfo.ObjectOf(name); obj != nil {
 									fmt.Printf("[DEBUG] 检查变量 %s, 类型: %s\n", name.Name, obj.Type().String())
-									if g.isGinEngine(obj.Type()) {
+									if g.IsGinEngine(obj.Type()) {
 										fmt.Printf("[DEBUG] 找到gin.Engine变量: %s\n", name.Name)
 										routers = append(routers, obj)
 									}
@@ -105,8 +105,8 @@ func (g *GinExtractor) FindRootRouters(pkgs []*packages.Package) []types.Object 
 	return routers
 }
 
-// isGinEngine 检查类型是否为gin.Engine或*gin.Engine
-func (g *GinExtractor) isGinEngine(typ types.Type) bool {
+// IsGinEngine 检查类型是否为gin.Engine
+func (g *GinExtractor) IsGinEngine(typ types.Type) bool {
 	// 处理指针类型
 	if ptr, ok := typ.(*types.Pointer); ok {
 		typ = ptr.Elem()
@@ -149,15 +149,13 @@ func (g *GinExtractor) IsRouteGroupCall(callExpr *ast.CallExpr, typeInfo *types.
 			// 检查调用者是否为gin相关类型
 			if typ := typeInfo.TypeOf(selExpr.X); typ != nil {
 				fmt.Printf("[DEBUG] IsRouteGroupCall: 调用者类型 %s\n", typ.String())
-				if g.isGinRouterGroup(typ) {
+				if g.IsGinRouterGroup(typ) {
 					fmt.Printf("[DEBUG] IsRouteGroupCall: 确认为Gin路由分组调用\n")
 					// 提取路径参数
 					if len(callExpr.Args) > 0 {
-						if pathArg, ok := callExpr.Args[0].(*ast.BasicLit); ok {
-							path := strings.Trim(pathArg.Value, "\"")
-							fmt.Printf("[DEBUG] IsRouteGroupCall: 路径段 %s\n", path)
-							return true, path
-						}
+						path := g.extractPathFromExpression(callExpr.Args[0], typeInfo)
+						fmt.Printf("[DEBUG] IsRouteGroupCall: 路径段 %s\n", path)
+						return true, path
 					}
 				}
 			}
@@ -166,8 +164,8 @@ func (g *GinExtractor) IsRouteGroupCall(callExpr *ast.CallExpr, typeInfo *types.
 	return false, ""
 }
 
-// isGinRouterGroup 检查类型是否为gin相关的路由器类型
-func (g *GinExtractor) isGinRouterGroup(typ types.Type) bool {
+// IsGinRouterGroup 检查类型是否为gin相关的路由器类型
+func (g *GinExtractor) IsGinRouterGroup(typ types.Type) bool {
 	// 处理指针类型
 	if ptr, ok := typ.(*types.Pointer); ok {
 		typ = ptr.Elem()
@@ -198,15 +196,13 @@ func (g *GinExtractor) IsHTTPMethodCall(callExpr *ast.CallExpr, typeInfo *types.
 				// 检查调用者是否为gin相关类型
 				if typ := typeInfo.TypeOf(selExpr.X); typ != nil {
 					fmt.Printf("[DEBUG] IsHTTPMethodCall: 调用者类型 %s\n", typ.String())
-					if g.isGinRouterGroup(typ) {
+					if g.IsGinRouterGroup(typ) {
 						fmt.Printf("[DEBUG] IsHTTPMethodCall: 确认为Gin HTTP方法调用\n")
 						// 提取路径参数
 						if len(callExpr.Args) > 0 {
-							if pathArg, ok := callExpr.Args[0].(*ast.BasicLit); ok {
-								path := strings.Trim(pathArg.Value, "\"")
-								fmt.Printf("[DEBUG] IsHTTPMethodCall: 方法 %s, 路径 %s\n", method, path)
-								return true, method, path
-							}
+							path := g.extractPathFromExpression(callExpr.Args[0], typeInfo)
+							fmt.Printf("[DEBUG] IsHTTPMethodCall: 方法 %s, 路径 %s\n", method, path)
+							return true, method, path
 						}
 					}
 				}
@@ -327,4 +323,189 @@ func (g *GinExtractor) isGinContextCall(expr ast.Expr, typeInfo *types.Info) boo
 		}
 	}
 	return false
+}
+
+// FindRouterGroupFunctions 查找所有接受Gin路由器参数的函数（路由分组函数）
+func (g *GinExtractor) FindRouterGroupFunctions(pkgs []*packages.Package) map[string]*models.RouterGroupFunction {
+	routerGroupFunctions := make(map[string]*models.RouterGroupFunction)
+
+	fmt.Printf("[DEBUG] GinExtractor.FindRouterGroupFunctions: 开始查找路由分组函数，共有 %d 个包\n", len(pkgs))
+
+	for _, pkg := range pkgs {
+		fmt.Printf("[DEBUG] 检查包: %s\n", pkg.PkgPath)
+		for _, file := range pkg.Syntax {
+			for _, decl := range file.Decls {
+				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+					if funcDecl.Type.Params != nil {
+						// 检查每个参数是否为路由器类型
+						for i, param := range funcDecl.Type.Params.List {
+							if g.IsRouterParameter(param, pkg.TypesInfo) {
+								uniqueKey := pkg.PkgPath + "+" + funcDecl.Name.Name
+								fmt.Printf("[DEBUG] 找到路由分组函数: %s (参数索引: %d)\n", uniqueKey, i)
+
+								routerGroupFunctions[uniqueKey] = &models.RouterGroupFunction{
+									PackagePath:    pkg.PkgPath,
+									FunctionName:   funcDecl.Name.Name,
+									FuncDecl:       funcDecl,
+									Package:        pkg,
+									RouterParamIdx: i,
+									UniqueKey:      uniqueKey,
+								}
+								break // 找到一个路由器参数就足够了
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	fmt.Printf("[DEBUG] FindRouterGroupFunctions完成，找到 %d 个路由分组函数\n", len(routerGroupFunctions))
+	return routerGroupFunctions
+}
+
+// IsRouterParameter 检查函数参数是否为Gin路由器类型
+func (g *GinExtractor) IsRouterParameter(param *ast.Field, typeInfo *types.Info) bool {
+	if param.Type != nil {
+		// 获取参数类型
+		if typ := typeInfo.TypeOf(param.Type); typ != nil {
+			// 检查是否为Gin路由器相关类型
+			return g.IsGinRouterGroup(typ)
+		}
+	}
+	return false
+}
+
+// extractPathFromExpression 从表达式中提取路径，支持多种表达式类型
+func (g *GinExtractor) extractPathFromExpression(expr ast.Expr, typeInfo *types.Info) string {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		// 字符串字面量: "/user"
+		return strings.Trim(e.Value, "\"")
+
+	case *ast.CallExpr:
+		// 函数调用: fmt.Sprintf("/%s", enum.AvoidInsuranceFlag)
+		return g.extractPathFromFunctionCall(e, typeInfo)
+
+	case *ast.Ident:
+		// 变量引用: pathVar
+		return g.extractPathFromIdentifier(e, typeInfo)
+
+	case *ast.SelectorExpr:
+		// 字段访问: config.BasePath
+		return g.extractPathFromSelector(e, typeInfo)
+
+	case *ast.BinaryExpr:
+		// 二元表达式: "/api" + "/v1"
+		return g.extractPathFromBinaryExpr(e, typeInfo)
+
+	default:
+		// 其他未处理的表达式类型，返回占位符
+		fmt.Printf("[DEBUG] extractPathFromExpression: 未处理的表达式类型 %T\n", expr)
+		return "/dynamic_path"
+	}
+}
+
+// extractPathFromFunctionCall 从函数调用中提取路径
+func (g *GinExtractor) extractPathFromFunctionCall(callExpr *ast.CallExpr, typeInfo *types.Info) string {
+	// 检查是否为 fmt.Sprintf 调用
+	if selExpr, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
+		if ident, ok := selExpr.X.(*ast.Ident); ok {
+			if ident.Name == "fmt" && selExpr.Sel.Name == "Sprintf" {
+				// 处理 fmt.Sprintf 调用
+				return g.extractPathFromSprintfCall(callExpr, typeInfo)
+			}
+		}
+	}
+
+	// 其他函数调用，尝试从类型信息获取
+	if typ := typeInfo.TypeOf(callExpr); typ != nil {
+		if basic, ok := typ.(*types.Basic); ok && basic.Kind() == types.String {
+			return "/dynamic_path"
+		}
+	}
+
+	return "/function_call"
+}
+
+// extractPathFromSprintfCall 从 fmt.Sprintf 调用中提取路径模式
+func (g *GinExtractor) extractPathFromSprintfCall(callExpr *ast.CallExpr, typeInfo *types.Info) string {
+	if len(callExpr.Args) == 0 {
+		return "/sprintf_empty"
+	}
+
+	// 获取格式字符串（第一个参数）
+	if formatExpr, ok := callExpr.Args[0].(*ast.BasicLit); ok {
+		formatStr := strings.Trim(formatExpr.Value, "\"")
+
+		// 如果有更多参数，尝试进行简单的模式识别
+		if len(callExpr.Args) > 1 {
+			// 对于简单情况，我们可以尝试识别一些常见模式
+			// 例如: fmt.Sprintf("/%s", enum.Value) -> "/{param}"
+			result := formatStr
+			argCount := len(callExpr.Args) - 1 // 减去格式字符串
+
+			// 简单替换 %s, %d 等为占位符
+			result = strings.ReplaceAll(result, "%s", "{param}")
+			result = strings.ReplaceAll(result, "%d", "{id}")
+			result = strings.ReplaceAll(result, "%v", "{value}")
+
+			fmt.Printf("[DEBUG] extractPathFromSprintfCall: 格式='%s', 参数数量=%d, 结果='%s'\n",
+				formatStr, argCount, result)
+
+			return result
+		}
+
+		return formatStr
+	}
+
+	return "/sprintf_complex"
+}
+
+// extractPathFromIdentifier 从标识符中提取路径
+func (g *GinExtractor) extractPathFromIdentifier(ident *ast.Ident, typeInfo *types.Info) string {
+	// 尝试从类型信息获取值
+	if obj := typeInfo.ObjectOf(ident); obj != nil {
+		if konst, ok := obj.(*types.Const); ok {
+			// 常量值
+			if konst.Val() != nil {
+				if val := konst.Val().String(); val != "" {
+					return strings.Trim(val, "\"")
+				}
+			}
+		}
+
+		// 变量名作为路径标识
+		return fmt.Sprintf("/{%s}", ident.Name)
+	}
+
+	return fmt.Sprintf("/{%s}", ident.Name)
+}
+
+// extractPathFromSelector 从选择器表达式中提取路径
+func (g *GinExtractor) extractPathFromSelector(selExpr *ast.SelectorExpr, typeInfo *types.Info) string {
+	if ident, ok := selExpr.X.(*ast.Ident); ok {
+		// 例如: config.BasePath -> "{config.BasePath}"
+		return fmt.Sprintf("/{%s.%s}", ident.Name, selExpr.Sel.Name)
+	}
+
+	return "/selector_path"
+}
+
+// extractPathFromBinaryExpr 从二元表达式中提取路径
+func (g *GinExtractor) extractPathFromBinaryExpr(binExpr *ast.BinaryExpr, typeInfo *types.Info) string {
+	if binExpr.Op.String() == "+" {
+		// 字符串连接
+		left := g.extractPathFromExpression(binExpr.X, typeInfo)
+		right := g.extractPathFromExpression(binExpr.Y, typeInfo)
+
+		// 如果两边都是简单字符串，直接连接
+		if !strings.Contains(left, "{") && !strings.Contains(right, "{") {
+			return left + right
+		}
+
+		return fmt.Sprintf("%s%s", left, right)
+	}
+
+	return "/binary_expr"
 }

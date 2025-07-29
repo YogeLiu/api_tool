@@ -1,6 +1,12 @@
 // 文件位置: pkg/models/models.go
 package models
 
+import (
+	"go/ast"
+
+	"golang.org/x/tools/go/packages"
+)
+
 // APIInfo 代表整个API的结构化信息
 type APIInfo struct {
 	Routes []RouteInfo `json:"routes"`
@@ -34,4 +40,14 @@ type FieldInfo struct {
 	Type    string      `json:"type"`             // 字段类型
 	Fields  []FieldInfo `json:"fields,omitempty"` // 嵌套字段（用于结构体）
 	Items   *FieldInfo  `json:"items,omitempty"`  // 数组/切片元素类型
+}
+
+// RouterGroupFunction 代表路由分组函数的信息
+type RouterGroupFunction struct {
+	PackagePath    string            `json:"package_path"`     // 包路径
+	FunctionName   string            `json:"function_name"`    // 函数名称
+	FuncDecl       *ast.FuncDecl     `json:"-"`                // 函数声明（不序列化）
+	Package        *packages.Package `json:"-"`                // 所属包（不序列化）
+	RouterParamIdx int               `json:"router_param_idx"` // 路由器参数在参数列表中的索引
+	UniqueKey      string            `json:"unique_key"`       // 唯一标识 (packagePath+functionName)
 }

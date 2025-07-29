@@ -1,3 +1,6 @@
 my-tool
-api-tool
+vendor
 api_tool
+*.debug
+*.log
+*.json

@@ -17,6 +17,14 @@ func main() {
 	framework := flag.String("framework", "gin", "目标框架 (gin 或 iris)。")
 	flag.Parse()
 
+	// 检查是否有位置参数，如果有则使用位置参数作为项目路径
+	args := flag.Args()
+	if len(args) > 0 {
+		*projectPath = args[0]
+	}
+
+	log.Printf("项目路径: %s", *projectPath)
+
 	log.Println("1. 解析项目代码...")
 	proj, err := parser.ParseProject(*projectPath)
 	if err != nil {

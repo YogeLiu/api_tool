@@ -19,6 +19,13 @@ type Extractor interface {
 	// FindRootRouters 在已加载的包中查找并返回所有根路由对象的 `types.Object`。
 	FindRootRouters(pkgs []*packages.Package) []types.Object
 
+	// FindRouterGroupFunctions 查找所有接受路由器参数的函数（路由分组函数）
+	// 返回值: 路由分组函数的映射，key为 packagePath+functionName，value为函数信息
+	FindRouterGroupFunctions(pkgs []*packages.Package) map[string]*models.RouterGroupFunction
+
+	// IsRouterParameter 检查函数参数是否为路由器类型
+	IsRouterParameter(param *ast.Field, typeInfo *types.Info) bool
+
 	// IsRouteGroupCall 判断一个调用表达式是否为路由分组（如 .Group()）。
 	// 返回值: isGroup 表示是否为分组调用，pathSegment 表示分组的路径段
 	IsRouteGroupCall(callExpr *ast.CallExpr, typeInfo *types.Info) (isGroup bool, pathSegment string)

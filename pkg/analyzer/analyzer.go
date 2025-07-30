@@ -47,6 +47,15 @@ func NewAnalyzer(proj *parser.Project, ext extractor.Extractor) *Analyzer {
 func (a *Analyzer) Analyze() (*models.APIInfo, error) {
 	fmt.Printf("[DEBUG] 开始两阶段路由分析\n")
 
+	// 预处理阶段：初始化提取器，进行预扫描
+	fmt.Printf("[DEBUG] === 预处理阶段：初始化提取器 ===\n")
+	if err := a.extractor.InitializeAnalysis(); err != nil {
+		return nil, &models.AnalysisError{
+			Context: "初始化提取器",
+			Reason:  fmt.Sprintf("提取器初始化失败: %v", err),
+		}
+	}
+
 	// 第一阶段：扫描并索引所有路由分组函数
 	fmt.Printf("[DEBUG] === 第一阶段：索引路由分组函数 ===\n")
 	a.routerGroupFunctions = a.extractor.FindRouterGroupFunctions(a.project.Packages)

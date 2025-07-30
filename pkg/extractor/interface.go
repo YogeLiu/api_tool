@@ -16,6 +16,9 @@ type TypeResolver func(typ types.Type) *models.FieldInfo
 
 // Extractor 定义了从特定Web框架中提取API信息的通用方法。
 type Extractor interface {
+	// InitializeAnalysis 初始化分析器，进行预扫描和索引
+	InitializeAnalysis() error
+
 	// FindRootRouters 在已加载的包中查找并返回所有根路由对象的 `types.Object`。
 	FindRootRouters(pkgs []*packages.Package) []types.Object
 

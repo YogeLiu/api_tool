@@ -22,6 +22,12 @@ func (i *IrisExtractor) GetFrameworkName() string {
 	return "iris"
 }
 
+// InitializeAnalysis 初始化分析器（Iris提取器暂未实现预扫描）
+func (i *IrisExtractor) InitializeAnalysis() error {
+	// Iris提取器暂未实现响应函数预扫描功能
+	return nil
+}
+
 // FindRootRouters 查找iris.Application类型的根路由器
 func (i *IrisExtractor) FindRootRouters(pkgs []*packages.Package) []types.Object {
 	var routers []types.Object

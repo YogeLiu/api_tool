@@ -4,6 +4,7 @@ package extractor
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"strings"
 
@@ -61,6 +62,12 @@ func (g *GinExtractor) scanPackageForResponseFunctions(pkg *packages.Package) {
 // analyzeFunction 分析函数是否为响应函数
 func (g *GinExtractor) analyzeFunction(funcDecl *ast.FuncDecl, pkg *packages.Package) {
 	if funcDecl.Type.Params == nil {
+		return
+	}
+
+	// 排除Handler方法（有receiver的函数），因为它们是HTTP处理函数，不是响应封装函数
+	if funcDecl.Recv != nil {
+		fmt.Printf("[DEBUG] analyzeFunction: 跳过Handler方法 %s (有receiver)\n", funcDecl.Name.Name)
 		return
 	}
 
@@ -736,7 +743,7 @@ func (g *GinExtractor) ExtractResponse(handlerDecl *ast.FuncDecl, typeInfo *type
 		return response
 	}
 
-	fmt.Printf("[DEBUG] ExtractResponse: 开始分析处理函数 %s\n", handlerDecl.Name.Name)
+	fmt.Printf("[DEBUG] ExtractResponse: 开始分析处理函数 %s, 有receiver: %v\n", handlerDecl.Name.Name, handlerDecl.Recv != nil)
 
 	// 获取Context参数名
 	contextParam := g.findContextParameter(handlerDecl)
@@ -784,18 +791,25 @@ func (g *GinExtractor) ExtractResponse(handlerDecl *ast.FuncDecl, typeInfo *type
 // findDirectContextJSONCall 查找Handler中直接的ctx.JSON调用
 func (g *GinExtractor) findDirectContextJSONCall(handlerDecl *ast.FuncDecl, contextParam string) *ast.CallExpr {
 	if handlerDecl.Body == nil {
+		fmt.Printf("[DEBUG] findDirectContextJSONCall: %s 函数体为空\n", handlerDecl.Name.Name)
 		return nil
 	}
 
+	fmt.Printf("[DEBUG] findDirectContextJSONCall: 在 %s 中查找 %s.JSON 调用\n", handlerDecl.Name.Name, contextParam)
+
 	var jsonCall *ast.CallExpr
+	callCount := 0
 
 	// 遍历函数体，查找 contextParam.JSON 调用
 	ast.Inspect(handlerDecl.Body, func(node ast.Node) bool {
 		if callExpr, ok := node.(*ast.CallExpr); ok {
+			callCount++
 			if selExpr, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
 				// 检查是否为 contextParam.JSON 形式的调用
 				if ident, ok := selExpr.X.(*ast.Ident); ok {
+					fmt.Printf("[DEBUG] findDirectContextJSONCall: 发现调用 %s.%s\n", ident.Name, selExpr.Sel.Name)
 					if ident.Name == contextParam && g.isJSONMethod(selExpr.Sel.Name) {
+						fmt.Printf("[DEBUG] findDirectContextJSONCall: 匹配到JSON调用！\n")
 						jsonCall = callExpr
 						return false // 找到第一个就停止
 					}
@@ -804,6 +818,9 @@ func (g *GinExtractor) findDirectContextJSONCall(handlerDecl *ast.FuncDecl, cont
 		}
 		return true
 	})
+
+	fmt.Printf("[DEBUG] findDirectContextJSONCall: %s 中共发现 %d 个调用，JSON调用: %v\n",
+		handlerDecl.Name.Name, callCount, jsonCall != nil)
 
 	return jsonCall
 }
@@ -1247,16 +1264,24 @@ func (g *GinExtractor) extractPathFromBinaryExpr(binExpr *ast.BinaryExpr, typeIn
 // findContextParameter 查找Context参数名
 func (g *GinExtractor) findContextParameter(handlerDecl *ast.FuncDecl) string {
 	if handlerDecl.Type.Params == nil {
+		fmt.Printf("[DEBUG] findContextParameter: %s 没有参数\n", handlerDecl.Name.Name)
 		return ""
 	}
 
-	for _, param := range handlerDecl.Type.Params.List {
+	fmt.Printf("[DEBUG] findContextParameter: %s 有 %d 个参数\n", handlerDecl.Name.Name, len(handlerDecl.Type.Params.List))
+
+	for i, param := range handlerDecl.Type.Params.List {
+		fmt.Printf("[DEBUG] findContextParameter: 参数 %d, 名称数量: %d\n", i, len(param.Names))
 		if len(param.Names) > 0 {
+			fmt.Printf("[DEBUG] findContextParameter: 参数名: %s, 类型: %T\n", param.Names[0].Name, param.Type)
+
 			// 检查参数类型是否为gin.Context
 			if starExpr, ok := param.Type.(*ast.StarExpr); ok {
 				if selExpr, ok := starExpr.X.(*ast.SelectorExpr); ok {
 					if ident, ok := selExpr.X.(*ast.Ident); ok {
+						fmt.Printf("[DEBUG] findContextParameter: 找到选择器表达式: %s.%s\n", ident.Name, selExpr.Sel.Name)
 						if ident.Name == "gin" && selExpr.Sel.Name == "Context" {
+							fmt.Printf("[DEBUG] findContextParameter: 找到gin.Context参数: %s\n", param.Names[0].Name)
 							return param.Names[0].Name
 						}
 					}
@@ -1264,6 +1289,7 @@ func (g *GinExtractor) findContextParameter(handlerDecl *ast.FuncDecl) string {
 			}
 		}
 	}
+	fmt.Printf("[DEBUG] findContextParameter: %s 未找到gin.Context参数\n", handlerDecl.Name.Name)
 	return ""
 }
 
@@ -1596,17 +1622,36 @@ func (g *GinExtractor) parseResponseDataTypeEnhanced(expr ast.Expr, typeInfo *ty
 		return &models.FieldInfo{Type: "unknown"}
 	}
 
-	fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 开始解析响应数据类型\n")
+	// 检查是否需要调试输出（减少日志噪音）
+	needDebug := false
+	if expr != nil {
+		// 检查表达式中是否包含我们关心的变量
+		ast.Inspect(expr, func(n ast.Node) bool {
+			if ident, ok := n.(*ast.Ident); ok && ident.Name == "sessionInfo" {
+				needDebug = true
+				return false
+			}
+			return true
+		})
+	}
+
+	if needDebug {
+		fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 开始解析响应数据类型\n")
+	}
 
 	// 第一步：从类型信息解析，更积极地处理结果
 	if typ := typeInfo.TypeOf(expr); typ != nil {
-		fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 类型信息: %s\n", typ.String())
+		if needDebug {
+			fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 类型信息: %s\n", typ.String())
+		}
 
 		// 调用类型解析器
 		result := resolver(typ)
 		if result != nil {
-			fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析器返回类型: %s, 字段数: %d\n",
-				result.Type, len(result.Fields))
+			if needDebug {
+				fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析器返回类型: %s, 字段数: %d\n",
+					result.Type, len(result.Fields))
+			}
 
 			// 即使类型是"unknown"，如果有字段信息也返回
 			if result.Type != "unknown" || len(result.Fields) > 0 {
@@ -1617,47 +1662,66 @@ func (g *GinExtractor) parseResponseDataTypeEnhanced(expr ast.Expr, typeInfo *ty
 
 	// 第二步：表达式结构分析，更详细的处理
 	switch e := expr.(type) {
+	// 复合字面量
 	case *ast.CompositeLit:
-		fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析结构体字面量\n")
+		if needDebug {
+			fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析结构体字面量\n")
+		}
 		result := g.parseCompositeLiteralEnhanced(e, typeInfo, resolver)
 		if result != nil && (result.Type != "unknown" || len(result.Fields) > 0) {
 			return result
 		}
 
+		// 函数调用
 	case *ast.CallExpr:
-		fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析函数调用返回值\n")
+		if needDebug {
+			fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析函数调用返回值\n")
+		}
 		result := g.parseFunctionCallReturnEnhanced(e, typeInfo, resolver)
 		if result != nil && (result.Type != "unknown" || len(result.Fields) > 0) {
 			return result
 		}
 
+		// 变量引用
 	case *ast.Ident:
-		fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析变量引用: %s\n", e.Name)
+		if needDebug {
+			fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析变量引用: %s\n", e.Name)
+		}
 		result := g.parseVariableReferenceEnhanced(e, typeInfo, resolver)
 		if result != nil && (result.Type != "unknown" || len(result.Fields) > 0) {
 			return result
 		}
 
+		// 选择器表达式
 	case *ast.SelectorExpr:
-		fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析选择器表达式\n")
+		if needDebug {
+			fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析选择器表达式\n")
+		}
 		result := g.parseSelectorExpressionEnhanced(e, typeInfo, resolver)
 		if result != nil && (result.Type != "unknown" || len(result.Fields) > 0) {
 			return result
 		}
 
+		// 一元表达式
 	case *ast.UnaryExpr:
 		// 处理取地址等一元表达式
 		if e.Op.String() == "&" {
-			fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析取地址表达式\n")
+			if needDebug {
+				fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 解析取地址表达式\n")
+			}
 			return g.parseResponseDataTypeEnhanced(e.X, typeInfo, resolver)
 		}
 
 	default:
-		fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 未识别的表达式类型: %T\n", expr)
+		if needDebug {
+			fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 未识别的表达式类型: %T\n", expr)
+		}
 	}
 
 	// 最后返回默认值
-	fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 无法解析，返回默认值\n")
+	if needDebug {
+		fmt.Printf("[DEBUG] parseResponseDataTypeEnhanced: 无法解析，返回默认值\n")
+	}
 	return &models.FieldInfo{Type: "interface{}"}
 }
 
@@ -2086,31 +2150,64 @@ func (g *GinExtractor) extractBusinessDataFromJSONCall(call *models.DirectJSONCa
 
 // parseCompositeLiteralEnhanced 增强版结构体字面量解析
 func (g *GinExtractor) parseCompositeLiteralEnhanced(lit *ast.CompositeLit, typeInfo *types.Info, resolver TypeResolver) *models.FieldInfo {
-	fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 开始解析结构体字面量\n")
+	// 只对特定类型输出调试信息
+	debugThis := false
+	if lit.Type != nil {
+		if selExpr, ok := lit.Type.(*ast.SelectorExpr); ok {
+			if ident, ok := selExpr.X.(*ast.Ident); ok && ident.Name == "auth" {
+				debugThis = true
+			}
+		}
+	}
+
+	if debugThis {
+		fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 开始解析结构体字面量\n")
+	}
 
 	// 优先从类型信息获取
 	if typ := typeInfo.TypeOf(lit); typ != nil {
-		fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 从类型信息解析，类型: %s\n", typ.String())
+		if debugThis {
+			fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 从类型信息解析，类型: %s\n", typ.String())
+		}
 		result := resolver(typ)
 		if result != nil && (result.Type != "unknown" || len(result.Fields) > 0) {
-			fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 成功解析，类型: %s, 字段数: %d\n", result.Type, len(result.Fields))
+			if debugThis {
+				fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 成功解析，类型: %s, 字段数: %d\n", result.Type, len(result.Fields))
+			}
 			return result
 		}
 	}
 
 	// 尝试从结构体类型表达式分析
 	if lit.Type != nil {
-		fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 分析类型表达式\n")
+		if debugThis {
+			fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 分析类型表达式\n")
+		}
 		if typ := typeInfo.TypeOf(lit.Type); typ != nil {
 			result := resolver(typ)
 			if result != nil && (result.Type != "unknown" || len(result.Fields) > 0) {
-				fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 从类型表达式解析成功\n")
+				if debugThis {
+					fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 从类型表达式解析成功\n")
+				}
 				return result
 			}
 		}
+
+		// 当类型检查器失败时，尝试直接从 AST 解析类型信息
+		if debugThis {
+			fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 类型检查器失败，尝试从AST解析\n")
+		}
+		if result := g.parseTypeFromASTExpression(lit.Type, typeInfo, resolver); result != nil {
+			if debugThis {
+				fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 从AST解析成功，类型: %s, 字段数: %d\n", result.Type, len(result.Fields))
+			}
+			return result
+		}
 	}
 
-	fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 回退到基本结构体类型\n")
+	if debugThis {
+		fmt.Printf("[DEBUG] parseCompositeLiteralEnhanced: 回退到基本结构体类型\n")
+	}
 	return &models.FieldInfo{Type: "struct"}
 }
 
@@ -2129,41 +2226,107 @@ func (g *GinExtractor) parseFunctionCallReturnEnhanced(call *ast.CallExpr, typeI
 
 // parseVariableReferenceEnhanced 增强版变量引用解析
 func (g *GinExtractor) parseVariableReferenceEnhanced(ident *ast.Ident, typeInfo *types.Info, resolver TypeResolver) *models.FieldInfo {
-	fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 解析变量 %s\n", ident.Name)
+	// 只为特定变量输出调试信息
+	debugThisVar := ident.Name == "sessionInfo"
+
+	if debugThisVar {
+		fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 解析变量 %s\n", ident.Name)
+	}
 
 	obj := typeInfo.ObjectOf(ident)
 	if obj == nil {
-		fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 无法找到变量 %s 的对象信息\n", ident.Name)
+		if debugThisVar {
+			fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 无法找到变量 %s 的对象信息，尝试查找变量定义\n", ident.Name)
+		}
+		// 当类型检查器无法找到对象信息时，尝试查找变量定义
+		if varDef := g.findVariableDefinition(ident, typeInfo); varDef != nil {
+			if debugThisVar {
+				fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 找到变量定义，解析赋值表达式\n")
+			}
+			return g.parseResponseDataTypeEnhanced(varDef, typeInfo, resolver)
+		}
+
+		if debugThisVar {
+			fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 无法找到变量定义，返回unknown\n")
+		}
 		return &models.FieldInfo{Type: "unknown"}
 	}
 
-	fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 变量 %s 类型: %s, 对象类型: %T\n",
-		ident.Name, obj.Type().String(), obj)
+	// 详细分析类型信息
+	objType := obj.Type()
+	if debugThisVar {
+		fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 变量 %s 详细信息:\n", ident.Name)
+		fmt.Printf("[DEBUG]   - 类型字符串: %s\n", objType.String())
+		fmt.Printf("[DEBUG]   - 对象类型: %T\n", obj)
+		fmt.Printf("[DEBUG]   - 底层类型: %s\n", objType.Underlying().String())
+
+		// 如果是命名类型，显示包和类型名
+		if named, ok := objType.(*types.Named); ok {
+			obj := named.Obj()
+			if obj != nil {
+				fmt.Printf("[DEBUG]   - 命名类型包路径: %s\n", obj.Pkg().Path())
+				fmt.Printf("[DEBUG]   - 命名类型名称: %s\n", obj.Name())
+			}
+		}
+	}
 
 	// 使用增强的类型解析器，利用TypeRegistry
-	result := g.resolveTypeWithRegistry(obj.Type(), resolver)
+	if debugThisVar {
+		fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 尝试TypeRegistry解析\n")
+	}
+	result := g.resolveTypeWithRegistry(objType, resolver)
 	if result != nil && result.Type != "unknown" {
-		fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: TypeRegistry解析成功，类型: %s, 字段数: %d\n",
-			result.Type, len(result.Fields))
+		if debugThisVar {
+			fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: TypeRegistry解析成功，类型: %s, 字段数: %d\n",
+				result.Type, len(result.Fields))
+		}
 		return result
+	} else if debugThisVar {
+		if result != nil {
+			fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: TypeRegistry返回了结果但类型为unknown: %+v\n", result)
+		} else {
+			fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: TypeRegistry返回nil\n")
+		}
 	}
 
 	// 回退到默认解析器
-	result = resolver(obj.Type())
+	if debugThisVar {
+		fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 尝试默认解析器\n")
+	}
+	result = resolver(objType)
 	if result != nil {
-		fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 默认解析器结果，类型: %s, 字段数: %d\n",
-			result.Type, len(result.Fields))
-		return result
+		if debugThisVar {
+			fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 默认解析器结果，类型: %s, 字段数: %d\n",
+				result.Type, len(result.Fields))
+		}
+		if result.Type != "unknown" || len(result.Fields) > 0 {
+			return result
+		}
+	} else if debugThisVar {
+		fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 默认解析器返回nil\n")
 	}
 
-	fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 所有解析器都失败，变量 %s\n", ident.Name)
+	if debugThisVar {
+		fmt.Printf("[DEBUG] parseVariableReferenceEnhanced: 所有解析器都失败，返回unknown\n")
+	}
 	return &models.FieldInfo{Type: "unknown"}
 }
 
 // resolveTypeWithRegistry 使用TypeRegistry增强类型解析
 func (g *GinExtractor) resolveTypeWithRegistry(typ types.Type, resolver TypeResolver) *models.FieldInfo {
+	// 只对包含 SessionUserInfo 的类型进行详细调试
+	typeStr := typ.String()
+	debugThis := strings.Contains(typeStr, "SessionUserInfo") || strings.Contains(typeStr, "auth.")
+
+	if debugThis {
+		fmt.Printf("[DEBUG] resolveTypeWithRegistry: 开始解析类型 %s\n", typeStr)
+	}
+
 	// 处理指针类型
 	if ptr, ok := typ.(*types.Pointer); ok {
+		if debugThis {
+			fmt.Printf("[DEBUG] resolveTypeWithRegistry: 发现指针类型，解析元素类型\n")
+		}
 		typ = ptr.Elem()
 	}
 
@@ -2177,14 +2340,32 @@ func (g *GinExtractor) resolveTypeWithRegistry(typ types.Type, resolver TypeReso
 				TypeName:    obj.Name(),
 			}
 
-			fmt.Printf("[DEBUG] resolveTypeWithRegistry: 查找类型 %s.%s\n", fullType.PackagePath, fullType.TypeName)
+			if debugThis {
+				fmt.Printf("[DEBUG] resolveTypeWithRegistry: 查找类型 %s.%s\n", fullType.PackagePath, fullType.TypeName)
+				fmt.Printf("[DEBUG] resolveTypeWithRegistry: TypeRegistry中的类型数量: %d\n", len(g.project.TypeRegistry))
+			}
 
 			// 从TypeRegistry中查找类型定义
 			if typeSpec := g.project.GetTypeSpec(fullType); typeSpec != nil {
-				fmt.Printf("[DEBUG] resolveTypeWithRegistry: 找到类型定义 %s\n", typeSpec.Name.Name)
+				if debugThis {
+					fmt.Printf("[DEBUG] resolveTypeWithRegistry: 找到类型定义 %s\n", typeSpec.Name.Name)
+				}
 				return g.parseTypeSpecToFieldInfo(typeSpec, fullType.PackagePath, resolver)
+			} else if debugThis {
+				fmt.Printf("[DEBUG] resolveTypeWithRegistry: 未在TypeRegistry中找到类型 %s.%s\n", fullType.PackagePath, fullType.TypeName)
+				// 打印TypeRegistry中相关的类型（调试用）
+				fmt.Printf("[DEBUG] resolveTypeWithRegistry: TypeRegistry中相关的类型:\n")
+				for ft, _ := range g.project.TypeRegistry {
+					if strings.Contains(ft.PackagePath, "auth") || strings.Contains(ft.TypeName, "Session") {
+						fmt.Printf("[DEBUG]   - %s.%s\n", ft.PackagePath, ft.TypeName)
+					}
+				}
 			}
+		} else if debugThis {
+			fmt.Printf("[DEBUG] resolveTypeWithRegistry: 命名类型的对象为nil或包信息为nil\n")
 		}
+	} else if debugThis {
+		fmt.Printf("[DEBUG] resolveTypeWithRegistry: 不是命名类型，类型: %T\n", typ)
 	}
 
 	// 处理切片类型
@@ -2391,4 +2572,220 @@ func (g *GinExtractor) parseSelectorExpressionEnhanced(selExpr *ast.SelectorExpr
 	}
 
 	return &models.FieldInfo{Type: "unknown"}
+}
+
+// findVariableDefinition 查找变量的定义表达式
+func (g *GinExtractor) findVariableDefinition(ident *ast.Ident, typeInfo *types.Info) ast.Expr {
+	// 只为特定变量输出调试信息
+	debugThis := ident.Name == "sessionInfo"
+
+	if debugThis {
+		fmt.Printf("[DEBUG] findVariableDefinition: 开始查找变量 %s 的定义\n", ident.Name)
+	}
+
+	// 不依赖类型检查器，直接在 AST 中搜索变量定义
+	// 遍历所有包和文件，查找变量定义
+	var foundResult ast.Expr
+	var bestResult ast.Expr
+	var bestFuncName string
+
+	for _, pkg := range g.project.Packages {
+		for _, file := range pkg.Syntax {
+			// 查找所有函数中的变量定义
+			ast.Inspect(file, func(node ast.Node) bool {
+				switch n := node.(type) {
+				case *ast.FuncDecl:
+					if n.Body != nil {
+						// 在函数体中查找变量定义
+						if result := g.findVariableInBlock(n.Body, ident.Name, token.NoPos); result != nil {
+							if debugThis {
+								fmt.Printf("[DEBUG] findVariableDefinition: 在函数 %s 中找到变量定义\n", n.Name.Name)
+							}
+
+							// 优先选择复合字面量，因为它们包含更多类型信息
+							if compLit, ok := result.(*ast.CompositeLit); ok {
+								if _, ok := compLit.Type.(*ast.SelectorExpr); ok {
+									if debugThis {
+										fmt.Printf("[DEBUG] findVariableDefinition: 函数 %s 中的变量是复合字面量，优先使用\n", n.Name.Name)
+									}
+									bestResult = result
+									bestFuncName = n.Name.Name
+									return false // 找到复合字面量，立即使用
+								}
+							}
+
+							// 如果还没有找到更好的结果，使用当前结果
+							if foundResult == nil {
+								foundResult = result
+							}
+						}
+					}
+				}
+				return true
+			})
+
+			// 如果找到了复合字面量，立即返回
+			if bestResult != nil {
+				if debugThis {
+					fmt.Printf("[DEBUG] findVariableDefinition: 使用函数 %s 中的复合字面量定义\n", bestFuncName)
+				}
+				return bestResult
+			}
+		}
+	}
+
+	// 如果没有找到复合字面量，使用第一个找到的结果
+	if foundResult != nil {
+		if debugThis {
+			fmt.Printf("[DEBUG] findVariableDefinition: 使用找到的第一个变量定义\n")
+		}
+		return foundResult
+	}
+
+	if debugThis {
+		fmt.Printf("[DEBUG] findVariableDefinition: 未找到变量 %s 的定义\n", ident.Name)
+	}
+	return nil
+}
+
+// findVariableInBlock 在代码块中查找变量定义
+func (g *GinExtractor) findVariableInBlock(block *ast.BlockStmt, varName string, targetPos token.Pos) ast.Expr {
+	// 只为特定变量输出调试信息
+	debugThis := varName == "sessionInfo"
+
+	for _, stmt := range block.List {
+		switch s := stmt.(type) {
+		case *ast.AssignStmt:
+			// 短变量声明 :=
+			for i, lhs := range s.Lhs {
+				if ident, ok := lhs.(*ast.Ident); ok && ident.Name == varName {
+					if i < len(s.Rhs) {
+						if debugThis {
+							fmt.Printf("[DEBUG] findVariableInBlock: 找到变量 %s 的赋值表达式\n", varName)
+							fmt.Printf("[DEBUG] findVariableInBlock: 赋值表达式类型: %T\n", s.Rhs[i])
+
+							// 如果是复合字面量，直接提取类型信息
+							if compLit, ok := s.Rhs[i].(*ast.CompositeLit); ok {
+								fmt.Printf("[DEBUG] findVariableInBlock: 发现复合字面量，类型: %T\n", compLit.Type)
+								if selExpr, ok := compLit.Type.(*ast.SelectorExpr); ok {
+									if ident, ok := selExpr.X.(*ast.Ident); ok {
+										fmt.Printf("[DEBUG] findVariableInBlock: 复合字面量类型: %s.%s\n", ident.Name, selExpr.Sel.Name)
+									}
+								}
+							}
+						}
+						return s.Rhs[i]
+					}
+				}
+			}
+		case *ast.DeclStmt:
+			// var 声明
+			if genDecl, ok := s.Decl.(*ast.GenDecl); ok {
+				for _, spec := range genDecl.Specs {
+					if valueSpec, ok := spec.(*ast.ValueSpec); ok {
+						for i, name := range valueSpec.Names {
+							if name.Name == varName && i < len(valueSpec.Values) {
+								if debugThis {
+									fmt.Printf("[DEBUG] findVariableInBlock: 找到变量 %s 的声明表达式\n", varName)
+								}
+								return valueSpec.Values[i]
+							}
+						}
+					}
+				}
+			}
+		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.TypeSwitchStmt:
+			// 递归检查嵌套的代码块
+			var result ast.Expr
+			ast.Inspect(s, func(node ast.Node) bool {
+				if blockStmt, ok := node.(*ast.BlockStmt); ok && blockStmt != block {
+					if expr := g.findVariableInBlock(blockStmt, varName, targetPos); expr != nil {
+						result = expr
+						return false
+					}
+				}
+				return true
+			})
+			if result != nil {
+				return result
+			}
+		}
+	}
+	return nil
+}
+
+// parseTypeFromASTExpression 直接从 AST 表达式解析类型信息（不依赖类型检查器）
+func (g *GinExtractor) parseTypeFromASTExpression(expr ast.Expr, typeInfo *types.Info, resolver TypeResolver) *models.FieldInfo {
+	switch e := expr.(type) {
+	case *ast.SelectorExpr:
+		// 处理 auth.SessionUserInfo 这样的选择器表达式
+		if ident, ok := e.X.(*ast.Ident); ok {
+			packageName := ident.Name
+			typeName := e.Sel.Name
+
+			fmt.Printf("[DEBUG] parseTypeFromASTExpression: 解析选择器表达式 %s.%s\n", packageName, typeName)
+
+			// 查找包的完整路径
+			fullPackagePath := g.findPackagePathByAlias(packageName)
+			if fullPackagePath == "" {
+				fmt.Printf("[DEBUG] parseTypeFromASTExpression: 无法找到包 %s 的完整路径\n", packageName)
+				return nil
+			}
+
+			// 构建 FullType
+			fullType := parser.FullType{
+				PackagePath: fullPackagePath,
+				TypeName:    typeName,
+			}
+
+			fmt.Printf("[DEBUG] parseTypeFromASTExpression: 查找类型 %s.%s\n", fullType.PackagePath, fullType.TypeName)
+
+			// 从 TypeRegistry 中查找类型定义
+			if typeSpec := g.project.GetTypeSpec(fullType); typeSpec != nil {
+				fmt.Printf("[DEBUG] parseTypeFromASTExpression: 找到类型定义 %s\n", typeSpec.Name.Name)
+				return g.parseTypeSpecToFieldInfo(typeSpec, fullType.PackagePath, resolver)
+			} else {
+				fmt.Printf("[DEBUG] parseTypeFromASTExpression: 未在TypeRegistry中找到类型 %s.%s\n", fullType.PackagePath, fullType.TypeName)
+			}
+		}
+	case *ast.Ident:
+		// 处理简单的标识符类型
+		typeName := e.Name
+		fmt.Printf("[DEBUG] parseTypeFromASTExpression: 解析标识符类型 %s\n", typeName)
+		// 这里可以处理内置类型或当前包的类型
+	}
+
+	return nil
+}
+
+// findPackagePathByAlias 根据包别名查找完整的包路径
+func (g *GinExtractor) findPackagePathByAlias(alias string) string {
+	// 遍历所有包，查找对应的导入信息
+	for _, pkg := range g.project.Packages {
+		for _, file := range pkg.Syntax {
+			// 检查文件的导入信息
+			for _, imp := range file.Imports {
+				importPath := strings.Trim(imp.Path.Value, `"`)
+
+				// 检查是否有别名
+				if imp.Name != nil {
+					if imp.Name.Name == alias {
+						fmt.Printf("[DEBUG] findPackagePathByAlias: 找到别名导入 %s -> %s\n", alias, importPath)
+						return importPath
+					}
+				} else {
+					// 没有别名，使用包路径的最后一部分作为别名
+					parts := strings.Split(importPath, "/")
+					packageName := parts[len(parts)-1]
+					if packageName == alias {
+						fmt.Printf("[DEBUG] findPackagePathByAlias: 找到默认导入 %s -> %s\n", alias, importPath)
+						return importPath
+					}
+				}
+			}
+		}
+	}
+
+	fmt.Printf("[DEBUG] findPackagePathByAlias: 未找到包别名 %s 对应的路径\n", alias)
+	return ""
 }

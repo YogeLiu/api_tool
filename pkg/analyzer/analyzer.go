@@ -275,6 +275,9 @@ func (a *Analyzer) handleHTTPMethodCall(callExpr *ast.CallExpr, context *RouteCo
 	}
 
 	// 提取请求和响应信息
+	if handlerFunc.Name.Name == "GetUserInfo" {
+		fmt.Printf("deubg")
+	}
 	request := a.extractor.ExtractRequest(handlerFunc, typeInfo, a.resolveType)
 	response := a.extractor.ExtractResponse(handlerFunc, typeInfo, a.resolveType)
 
@@ -441,8 +444,11 @@ func (a *Analyzer) extractHandlerFunction(callExpr *ast.CallExpr, typeInfo *type
 
 	lastArg := callExpr.Args[len(callExpr.Args)-1]
 
+	fmt.Printf("[DEBUG] extractHandlerFunction: 提取处理函数，参数类型: %T\n", lastArg)
+
 	if ident, ok := lastArg.(*ast.Ident); ok {
 		if obj := typeInfo.ObjectOf(ident); obj != nil {
+			fmt.Printf("[DEBUG] extractHandlerFunction: 通过标识符查找函数: %s\n", obj.Name())
 			return a.findFunctionDeclaration(obj.Name())
 		}
 	}
@@ -451,6 +457,7 @@ func (a *Analyzer) extractHandlerFunction(callExpr *ast.CallExpr, typeInfo *type
 		if ident, ok := selExpr.X.(*ast.Ident); ok {
 			packageName := ident.Name
 			functionName := selExpr.Sel.Name
+			fmt.Printf("[DEBUG] extractHandlerFunction: 通过包选择器查找函数: %s.%s\n", packageName, functionName)
 			return a.findFunctionInPackage(packageName, functionName)
 		}
 	}
@@ -467,36 +474,108 @@ func (a *Analyzer) extractHandlerFunction(callExpr *ast.CallExpr, typeInfo *type
 }
 
 func (a *Analyzer) findFunctionDeclaration(funcName string) *ast.FuncDecl {
+	var candidates []*ast.FuncDecl
+
+	// 收集所有同名函数
 	for _, pkg := range a.project.Packages {
 		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {
 				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
 					if funcDecl.Name.Name == funcName {
-						return funcDecl
+						candidates = append(candidates, funcDecl)
 					}
 				}
 			}
 		}
 	}
-	return nil
+
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	if len(candidates) == 1 {
+		return candidates[0]
+	}
+
+	// 如果有多个候选函数，优先选择有gin.Context参数的方法
+	fmt.Printf("[DEBUG] findFunctionDeclaration: 找到 %d 个同名函数 %s，进行筛选\n", len(candidates), funcName)
+
+	for i, candidate := range candidates {
+		hasGinContext := a.hasGinContextParameter(candidate)
+		isMethod := candidate.Recv != nil
+		fmt.Printf("[DEBUG] findFunctionDeclaration: 候选 %d - 有gin.Context参数: %v, 是方法: %v\n",
+			i+1, hasGinContext, isMethod)
+
+		// 优先选择有gin.Context参数的函数（通常是Handler）
+		if hasGinContext {
+			fmt.Printf("[DEBUG] findFunctionDeclaration: 选择有gin.Context参数的函数\n")
+			return candidate
+		}
+	}
+
+	// 如果没有找到有gin.Context的，返回第一个
+	fmt.Printf("[DEBUG] findFunctionDeclaration: 未找到有gin.Context参数的函数，返回第一个\n")
+	return candidates[0]
+}
+
+// hasGinContextParameter 检查函数是否有gin.Context参数
+func (a *Analyzer) hasGinContextParameter(funcDecl *ast.FuncDecl) bool {
+	if funcDecl.Type.Params == nil {
+		return false
+	}
+
+	for _, param := range funcDecl.Type.Params.List {
+		if len(param.Names) > 0 {
+			// 检查参数类型是否为gin.Context
+			if starExpr, ok := param.Type.(*ast.StarExpr); ok {
+				if selExpr, ok := starExpr.X.(*ast.SelectorExpr); ok {
+					if ident, ok := selExpr.X.(*ast.Ident); ok {
+						if ident.Name == "gin" && selExpr.Sel.Name == "Context" {
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 func (a *Analyzer) findFunctionInPackage(packageName, functionName string) *ast.FuncDecl {
+	fmt.Printf("[DEBUG] findFunctionInPackage: 查找 %s.%s\n", packageName, functionName)
+
 	for _, pkg := range a.project.Packages {
 		for _, file := range pkg.Syntax {
 			for _, imp := range file.Imports {
 				if imp.Name != nil && imp.Name.Name == packageName {
-					return a.findFunctionInImportedPackage(imp.Path.Value, functionName)
+					result := a.findFunctionInImportedPackage(imp.Path.Value, functionName)
+					if result != nil {
+						fmt.Printf("[DEBUG] findFunctionInPackage: 在导入包中找到函数\n")
+						return result
+					}
 				}
 			}
 
 			if strings.HasSuffix(pkg.PkgPath, "/"+packageName) ||
 				strings.HasSuffix(pkg.PkgPath, packageName) {
-				return a.findFunctionDeclarationInPackage(pkg, functionName)
+				result := a.findFunctionDeclarationInPackage(pkg, functionName)
+				if result != nil {
+					fmt.Printf("[DEBUG] findFunctionInPackage: 在包中找到函数\n")
+					return result
+				}
 			}
 		}
 	}
 
+	// 作为最后的尝试，在所有包中查找方法（有receiver的函数）
+	fmt.Printf("[DEBUG] findFunctionInPackage: 尝试查找方法 %s\n", functionName)
+	result := a.findMethodByName(functionName)
+	if result != nil {
+		fmt.Printf("[DEBUG] findFunctionInPackage: 找到方法 %s (有receiver)\n", functionName)
+		return result
+	}
+
+	fmt.Printf("[DEBUG] findFunctionInPackage: 未找到 %s.%s，创建空函数\n", packageName, functionName)
 	return &ast.FuncDecl{
 		Name: &ast.Ident{Name: functionName},
 		Type: &ast.FuncType{},
@@ -526,6 +605,50 @@ func (a *Analyzer) findFunctionDeclarationInPackage(pkg *packages.Package, funct
 		}
 	}
 	return nil
+}
+
+// findMethodByName 查找有receiver的方法（在所有包中搜索）
+func (a *Analyzer) findMethodByName(methodName string) *ast.FuncDecl {
+	var candidates []*ast.FuncDecl
+
+	// 收集所有同名方法
+	for _, pkg := range a.project.Packages {
+		for _, file := range pkg.Syntax {
+			for _, decl := range file.Decls {
+				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+					if funcDecl.Name.Name == methodName && funcDecl.Recv != nil {
+						candidates = append(candidates, funcDecl)
+					}
+				}
+			}
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	if len(candidates) == 1 {
+		return candidates[0]
+	}
+
+	// 如果有多个候选方法，优先选择有gin.Context参数的
+	fmt.Printf("[DEBUG] findMethodByName: 找到 %d 个同名方法 %s，进行筛选\n", len(candidates), methodName)
+
+	for i, candidate := range candidates {
+		hasGinContext := a.hasGinContextParameter(candidate)
+		fmt.Printf("[DEBUG] findMethodByName: 候选 %d - 有gin.Context参数: %v\n", i+1, hasGinContext)
+
+		// 优先选择有gin.Context参数的方法（通常是Handler）
+		if hasGinContext {
+			fmt.Printf("[DEBUG] findMethodByName: 选择有gin.Context参数的方法\n")
+			return candidate
+		}
+	}
+
+	// 如果没有找到有gin.Context的，返回第一个
+	fmt.Printf("[DEBUG] findMethodByName: 未找到有gin.Context参数的方法，返回第一个\n")
+	return candidates[0]
 }
 
 func (a *Analyzer) saveRoutesToDebugFile(routes []models.RouteInfo, filePath string) error {

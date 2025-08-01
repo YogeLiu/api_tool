@@ -43,7 +43,7 @@ func main() {
 	}
 
 	log.Println("3. 运行核心分析器...")
-	coreAnalyzer := analyzer.NewAnalyzer(proj, ext)
+	coreAnalyzer := analyzer.NewAnalyzer(*projectPath, proj, ext)
 	apiInfo, err := coreAnalyzer.Analyze()
 	if err != nil {
 		log.Fatalf("核心分析失败: %v", err)

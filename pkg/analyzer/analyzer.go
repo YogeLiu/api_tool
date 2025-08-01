@@ -11,6 +11,7 @@ import (
 
 	"path/filepath"
 
+	"github.com/YogeLiu/api-tool/helper"
 	"github.com/YogeLiu/api-tool/pkg/extractor"
 	"github.com/YogeLiu/api-tool/pkg/models"
 	"github.com/YogeLiu/api-tool/pkg/parser"
@@ -23,6 +24,7 @@ type Analyzer struct {
 	extractor            extractor.Extractor
 	routeCache           map[string]bool                        // 路由去重映射
 	routerGroupFunctions map[string]*models.RouterGroupFunction // 路由分组函数索引
+	funcBodyEngine       *helper.GinHandlerAnalyzer
 }
 
 // RouteContext 路由解析上下文
@@ -33,13 +35,26 @@ type RouteContext struct {
 	CallingPackage *packages.Package // 调用的包
 }
 
+// HandlerInfo 处理函数信息
+type HandlerInfo struct {
+	FuncDecl    *ast.FuncDecl     // 函数声明
+	PackageName string            // 函数所在包名
+	PackagePath string            // 函数所在包路径
+	Package     *packages.Package // 函数所在包
+}
+
 // NewAnalyzer 创建新的分析器实例
-func NewAnalyzer(proj *parser.Project, ext extractor.Extractor) *Analyzer {
+func NewAnalyzer(dir string, proj *parser.Project, ext extractor.Extractor) *Analyzer {
+	funcBodyEngine, err := helper.NewGinHandlerAnalyzer(dir)
+	if err != nil {
+		panic(err)
+	}
 	return &Analyzer{
 		project:              proj,
 		extractor:            ext,
 		routeCache:           make(map[string]bool),
 		routerGroupFunctions: make(map[string]*models.RouterGroupFunction),
+		funcBodyEngine:       funcBodyEngine,
 	}
 }
 
@@ -74,7 +89,7 @@ func (a *Analyzer) Analyze() (*models.APIInfo, error) {
 		}
 	}
 
-	var routes []models.RouteInfo
+	routes := make(map[string]models.RouteInfo)
 
 	// 为每个根路由器开始递归解析
 	for _, rootRouter := range rootRouters {
@@ -87,26 +102,30 @@ func (a *Analyzer) Analyze() (*models.APIInfo, error) {
 		}
 
 		foundRoutes := a.analyzeRouterRecursively(context)
-		routes = append(routes, foundRoutes...)
+		for k, v := range foundRoutes {
+			routes[k] = v
+		}
 	}
 
-	// 保存调试信息
-	debugFilePath := "api_routes.debug"
-	err := a.saveRoutesToDebugFile(routes, debugFilePath)
-	if err != nil {
-		fmt.Printf("[DEBUG] 保存路由信息到debug文件失败: %v\n", err)
-	} else {
-		fmt.Printf("[DEBUG] 路由信息已保存到 %s\n", debugFilePath)
+	// gin param 分析
+	paramResults := a.funcBodyEngine.Analyze()
+	for rk, _ := range routes {
+		param, ok := paramResults[rk]
+		if !ok {
+			fmt.Printf("[DEBUG] 路由 %s 未找到对应的参数分析结果\n", rk)
+			continue
+		}
+		fmt.Printf("[DEBUG] 路由 %s 找到对应的参数分析结果: %v\n", rk, param)
 	}
+
+	// 关联路由信息和参数分析结果
 
 	fmt.Printf("[DEBUG] 分析完成，总共找到 %d 个路由\n", len(routes))
-	return &models.APIInfo{
-		Routes: routes,
-	}, nil
+	return &models.APIInfo{}, nil
 }
 
 // analyzeRouterRecursively 递归解析路由器对象的使用
-func (a *Analyzer) analyzeRouterRecursively(context *RouteContext) []models.RouteInfo {
+func (a *Analyzer) analyzeRouterRecursively(context *RouteContext) map[string]models.RouteInfo {
 	var routes []models.RouteInfo
 
 	fmt.Printf("[DEBUG] analyzeRouterRecursively: 分析路由器 %s，当前路径: %s\n",
@@ -132,7 +151,7 @@ func (a *Analyzer) analyzeRouterRecursively(context *RouteContext) []models.Rout
 								if !a.routeCache[routeKey] {
 									a.routeCache[routeKey] = true
 									routes = append(routes, *route)
-									fmt.Printf("[DEBUG] 添加路由: %s %s -> %s\n", route.Method, route.Path, route.Handler)
+									fmt.Printf("[DEBUG] 添加路由: %s %s -> %s (包: %s)\n", route.Method, route.Path, route.Handler, route.PackagePath)
 								}
 							}
 						}
@@ -147,7 +166,12 @@ func (a *Analyzer) analyzeRouterRecursively(context *RouteContext) []models.Rout
 		}
 	}
 
-	return routes
+	ans := make(map[string]models.RouteInfo)
+	for _, route := range routes {
+		ans[route.PackagePath+"."+route.Handler] = route
+	}
+
+	return ans
 }
 
 // checkRouterGroupFunctionCall 检查是否为路由分组函数调用
@@ -256,7 +280,9 @@ func (a *Analyzer) handleRouteGroupCall(callExpr *ast.CallExpr, context *RouteCo
 	}
 
 	nestedRoutes := a.analyzeRouterRecursively(newContext)
-	routes = append(routes, nestedRoutes...)
+	for _, route := range nestedRoutes {
+		routes = append(routes, route)
+	}
 
 	return routes
 }
@@ -267,26 +293,28 @@ func (a *Analyzer) handleHTTPMethodCall(callExpr *ast.CallExpr, context *RouteCo
 	fullPath := a.combinePaths(context.ParentPath, pathSegment)
 	fmt.Printf("[DEBUG] handleHTTPMethodCall: 完整路径: %s\n", fullPath)
 
-	// 提取处理函数
-	handlerFunc := a.extractHandlerFunction(callExpr, typeInfo)
-	if handlerFunc == nil {
+	// 提取处理函数信息（包含包信息）
+	handlerInfo := a.extractHandlerInfo(callExpr, typeInfo)
+	if handlerInfo == nil || handlerInfo.FuncDecl == nil {
 		fmt.Printf("[DEBUG] 未找到处理函数\n")
 		return nil
 	}
 
 	// 提取请求和响应信息
-	if handlerFunc.Name.Name == "GetUserInfo" {
+	if handlerInfo.FuncDecl.Name.Name == "GetUserInfo" {
 		fmt.Printf("deubg")
 	}
-	request := a.extractor.ExtractRequest(handlerFunc, typeInfo, a.resolveType)
-	response := a.extractor.ExtractResponse(handlerFunc, typeInfo, a.resolveType)
+	request := a.extractor.ExtractRequest(handlerInfo.FuncDecl, typeInfo, a.resolveType)
+	response := a.extractor.ExtractResponse(handlerInfo.FuncDecl, typeInfo, a.resolveType)
 
 	return &models.RouteInfo{
-		Method:   method,
-		Path:     fullPath,
-		Handler:  handlerFunc.Name.Name,
-		Request:  request,
-		Response: response,
+		PackageName: handlerInfo.PackageName,
+		PackagePath: handlerInfo.PackagePath,
+		Method:      method,
+		Path:        fullPath,
+		Handler:     handlerInfo.FuncDecl.Name.Name,
+		Request:     request,
+		Response:    response,
 	}
 }
 
@@ -437,39 +465,118 @@ func (a *Analyzer) combinePaths(basePath, segment string) string {
 	return filepath.Join(basePath, segment)
 }
 
-func (a *Analyzer) extractHandlerFunction(callExpr *ast.CallExpr, typeInfo *types.Info) *ast.FuncDecl {
+// extractHandlerInfo 提取处理函数信息（包括包信息）
+func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.Info) *HandlerInfo {
 	if len(callExpr.Args) == 0 {
 		return nil
 	}
 
 	lastArg := callExpr.Args[len(callExpr.Args)-1]
 
-	fmt.Printf("[DEBUG] extractHandlerFunction: 提取处理函数，参数类型: %T\n", lastArg)
+	fmt.Printf("[DEBUG] extractHandlerInfo: 提取处理函数，参数类型: %T\n", lastArg)
 
+	// 1. 处理标识符（本包中的函数）
 	if ident, ok := lastArg.(*ast.Ident); ok {
 		if obj := typeInfo.ObjectOf(ident); obj != nil {
-			fmt.Printf("[DEBUG] extractHandlerFunction: 通过标识符查找函数: %s\n", obj.Name())
-			return a.findFunctionDeclaration(obj.Name())
+			fmt.Printf("[DEBUG] extractHandlerInfo: 通过标识符查找函数: %s\n", obj.Name())
+
+			// 获取函数所在的包信息
+			pkg := obj.Pkg()
+			if pkg != nil {
+				funcDecl := a.findFunctionDeclaration(obj.Name())
+				if funcDecl != nil {
+					return &HandlerInfo{
+						FuncDecl:    funcDecl,
+						PackageName: pkg.Name(),
+						PackagePath: pkg.Path(),
+						Package:     a.findPackageByPath(pkg.Path()),
+					}
+				}
+			}
 		}
 	}
 
+	// 2. 处理选择器表达式（其他包中的函数）
 	if selExpr, ok := lastArg.(*ast.SelectorExpr); ok {
 		if ident, ok := selExpr.X.(*ast.Ident); ok {
 			packageName := ident.Name
 			functionName := selExpr.Sel.Name
-			fmt.Printf("[DEBUG] extractHandlerFunction: 通过包选择器查找函数: %s.%s\n", packageName, functionName)
-			return a.findFunctionInPackage(packageName, functionName)
+			fmt.Printf("[DEBUG] extractHandlerInfo: 通过包选择器查找函数: %s.%s\n", packageName, functionName)
+
+			// 获取选择器对象的类型信息
+			if obj := typeInfo.ObjectOf(ident); obj != nil {
+				if pkg := obj.Pkg(); pkg != nil {
+					funcDecl := a.findFunctionInPackage(packageName, functionName)
+					if funcDecl != nil {
+						return &HandlerInfo{
+							FuncDecl:    funcDecl,
+							PackageName: pkg.Name(),
+							PackagePath: pkg.Path(),
+							Package:     a.findPackageByPath(pkg.Path()),
+						}
+					}
+				}
+			}
+
+			// 如果无法从类型信息获取，尝试通过包名查找
+			targetPkg := a.findPackageByName(packageName)
+			if targetPkg != nil {
+				funcDecl := a.findFunctionInPackage(packageName, functionName)
+				if funcDecl != nil {
+					return &HandlerInfo{
+						FuncDecl:    funcDecl,
+						PackageName: targetPkg.Name,
+						PackagePath: targetPkg.PkgPath,
+						Package:     targetPkg,
+					}
+				}
+			}
 		}
 	}
 
+	// 3. 处理匿名函数
 	if funcLit, ok := lastArg.(*ast.FuncLit); ok {
-		return &ast.FuncDecl{
-			Name: &ast.Ident{Name: "anonymous"},
-			Type: funcLit.Type,
-			Body: funcLit.Body,
+		// 对于匿名函数，使用当前包的信息
+		return &HandlerInfo{
+			FuncDecl: &ast.FuncDecl{
+				Name: &ast.Ident{Name: "anonymous"},
+				Type: funcLit.Type,
+				Body: funcLit.Body,
+			},
+			PackageName: "anonymous",
+			PackagePath: "anonymous",
+			Package:     nil,
 		}
 	}
 
+	return nil
+}
+
+// findPackageByPath 根据包路径查找包
+func (a *Analyzer) findPackageByPath(pkgPath string) *packages.Package {
+	for _, pkg := range a.project.Packages {
+		if pkg.PkgPath == pkgPath {
+			return pkg
+		}
+	}
+	return nil
+}
+
+// findPackageByName 根据包名查找包
+func (a *Analyzer) findPackageByName(pkgName string) *packages.Package {
+	for _, pkg := range a.project.Packages {
+		if pkg.Name == pkgName {
+			return pkg
+		}
+	}
+	return nil
+}
+
+func (a *Analyzer) extractHandlerFunction(callExpr *ast.CallExpr, typeInfo *types.Info) *ast.FuncDecl {
+	handlerInfo := a.extractHandlerInfo(callExpr, typeInfo)
+	if handlerInfo != nil {
+		return handlerInfo.FuncDecl
+	}
 	return nil
 }
 
@@ -663,4 +770,124 @@ func (a *Analyzer) saveRoutesToDebugFile(routes []models.RouteInfo, filePath str
 			route.Method, route.Path, route.Handler, route.Request, route.Response)
 	}
 	return nil
+}
+
+// mergeRouteInfoWithParams 关联路由信息和参数分析结果
+func (a *Analyzer) mergeRouteInfoWithParams(routes []models.RouteInfo, paramResults map[string]*helper.HandlerAnalysisResult) []models.RouteInfo {
+	// 创建一个映射，将现有路由按Handler名称分组
+	routesByHandler := make(map[string]*models.RouteInfo)
+	for i := range routes {
+		route := &routes[i]
+		routesByHandler[route.Handler] = route
+	}
+
+	// 遍历参数分析结果，尝试匹配并合并数据
+	mergedRoutes := make([]models.RouteInfo, 0, len(routes))
+	usedResults := make(map[string]bool)
+
+	// 首先处理能匹配的路由
+	for i := range routes {
+		route := routes[i]
+
+		// 尝试通过Handler名称找到对应的参数分析结果
+		var matchedResult *helper.HandlerAnalysisResult
+		var matchedKey string
+
+		for key, result := range paramResults {
+			if result.HandlerName == route.Handler {
+				matchedResult = result
+				matchedKey = key
+				break
+			}
+		}
+
+		if matchedResult != nil {
+			// 合并参数信息到路由中
+			fmt.Printf("[DEBUG] 合并路由 %s 的参数信息\n", route.Handler)
+
+			// 转换请求参数信息
+			request := a.convertRequestParams(matchedResult.RequestParams)
+
+			// 转换响应信息
+			response := a.convertResponseInfo(matchedResult.Response)
+
+			route.Request = request
+			route.Response = response
+
+			usedResults[matchedKey] = true
+		} else {
+			fmt.Printf("[DEBUG] 路由 %s 未找到对应的参数分析结果\n", route.Handler)
+		}
+
+		mergedRoutes = append(mergedRoutes, route)
+	}
+
+	// 处理只有参数分析结果但没有路由信息的情况
+	for key := range paramResults {
+		if !usedResults[key] {
+			fmt.Printf("[DEBUG] 参数分析结果 %s 未找到对应的路由信息，跳过\n", key)
+			// 可以选择创建一个警告或日志
+		}
+	}
+
+	fmt.Printf("[DEBUG] 合并完成，共有 %d 个路由\n", len(mergedRoutes))
+	return mergedRoutes
+}
+
+// convertRequestParams 转换请求参数信息
+func (a *Analyzer) convertRequestParams(requestParams []helper.RequestParamInfo) models.RequestInfo {
+	request := models.RequestInfo{
+		Params: make([]models.FieldInfo, 0),
+		Query:  make([]models.FieldInfo, 0),
+	}
+
+	for _, param := range requestParams {
+		fieldInfo := models.FieldInfo{
+			Name:    param.ParamName,
+			Type:    param.ParamSchema.Type,
+			JsonTag: param.ParamSchema.JSONTag,
+		}
+
+		switch param.Source {
+		case "path", "param":
+			request.Params = append(request.Params, fieldInfo)
+		case "query":
+			request.Query = append(request.Query, fieldInfo)
+		case "body", "json":
+			// 对于body参数，创建一个包含所有字段的结构
+			if request.Body == nil {
+				request.Body = &models.FieldInfo{
+					Type:   "object",
+					Fields: make([]models.FieldInfo, 0),
+				}
+			}
+			request.Body.Fields = append(request.Body.Fields, fieldInfo)
+		}
+	}
+
+	return request
+}
+
+// convertResponseInfo 转换响应信息
+func (a *Analyzer) convertResponseInfo(apiSchema *helper.APISchema) models.ResponseInfo {
+	response := models.ResponseInfo{
+		Responses: make(map[string]*models.ResponseDetail),
+	}
+
+	if apiSchema != nil {
+		// 根据APISchema创建响应详情
+		responseDetail := &models.ResponseDetail{
+			StatusCode: 200, // 默认状态码
+			Schema: &models.FieldInfo{
+				Type:    apiSchema.Type,
+				JsonTag: apiSchema.JSONTag,
+			},
+			Description: apiSchema.Description,
+		}
+
+		response.Responses["200"] = responseDetail
+		response.DefaultResp = responseDetail
+	}
+
+	return response
 }

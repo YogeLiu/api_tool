@@ -1,31 +1,43 @@
 🔍 开始解析项目: /Users/yoge/dev/go/src/go_equity_package
 📋 Handler分析结果:
 {
+  "package_name": "utils",
+  "package_path": "code.qschou.com/health/go_equity_package/internal/common/utils",
   "handler": "GetClientIP"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "utils",
+  "package_path": "code.qschou.com/health/go_equity_package/internal/common/utils",
   "handler": "GetIPAddress"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "order",
+  "package_path": "code.qschou.com/health/go_equity_package/internal/services/order",
   "handler": "NewOrderService"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "helper",
+  "package_path": "code.qschou.com/health/go_equity_package/internal/services/insure/helper",
   "handler": "GetBankListSort13594"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "auth",
+  "package_path": "code.qschou.com/health/go_equity_package/routers/auth",
   "handler": "GetSessionInfo"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "RenewalActivity",
   "response": {
     "type": "object",
@@ -73,6 +85,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "GetRenewalActivityList",
   "request_params": [
     {
@@ -123,6 +137,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "ActivityInfo",
   "response": {
     "type": "object",
@@ -190,6 +206,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "CreateAddress",
   "request_params": [
     {
@@ -256,6 +274,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "EntrustTermination",
   "request_params": [
     {
@@ -302,6 +322,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "HealthBank",
   "request_params": [
     {
@@ -366,6 +388,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "BankList",
   "request_params": [
     {
@@ -535,21 +559,29 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "GetUserId"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "GetPhone"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "GetRequestID"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "CrmAchieve",
   "request_params": [
     {
@@ -742,6 +774,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "CheckEntrust",
   "response": {
     "type": "object",
@@ -773,6 +807,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "CheckClaimEquity",
   "request_params": [
     {
@@ -850,6 +886,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "CreateClaimEquityRecord",
   "request_params": [
     {
@@ -896,6 +934,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "MemberInfo",
   "request_params": [
     {
@@ -1016,6 +1056,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "MemberList",
   "response": {
     "type": "object",
@@ -1066,6 +1108,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "QueryMemberIdcard",
   "request_params": [
     {
@@ -1142,6 +1186,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "MemberIdCardVerify",
   "request_params": [
     {
@@ -1230,6 +1276,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "PeInsureMemberSave",
   "request_params": [
     {
@@ -1290,6 +1338,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "DispatchMemberEquity",
   "request_params": [
     {
@@ -1327,6 +1377,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "SendCaptcha",
   "request_params": [
     {
@@ -1375,6 +1427,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "CaptchaCheck",
   "request_params": [
     {
@@ -1427,6 +1481,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "UpdateGroupInsure",
   "request_params": [
     {
@@ -1477,6 +1533,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "WolfBerryMemberInfo",
   "request_params": [
     {
@@ -1632,6 +1690,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "MemberRate",
   "request_params": [
     {
@@ -1982,6 +2042,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "WolfBerryMemberUserCouponList",
   "request_params": [
     {
@@ -2130,6 +2192,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "ModifyWolfBerryMemberProduct",
   "request_params": [
     {
@@ -2176,6 +2240,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "RCRMemberInfo",
   "response": {
     "type": "object",
@@ -2319,6 +2385,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "RCRMemberUserCouponList",
   "request_params": [
     {
@@ -2467,6 +2535,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "ModifyRCRMemberProduct",
   "request_params": [
     {
@@ -2513,6 +2583,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "PayRate",
   "request_params": [
     {
@@ -2624,6 +2696,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "MemberTypeList",
   "response": {
     "type": "object",
@@ -2702,6 +2776,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "GetUnEntrustInfo",
   "request_params": [
     {
@@ -2765,6 +2841,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "Create",
   "request_params": [
     {
@@ -2940,6 +3018,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "GetReturnUrl",
   "response": {
     "type": "object",
@@ -2965,6 +3045,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "GetMemberOrderDetail",
   "request_params": [
     {
@@ -3266,6 +3348,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "GetMemberProductOrderList",
   "request_params": [
     {
@@ -3350,6 +3434,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "GetPayStatus",
   "request_params": [
     {
@@ -3409,6 +3495,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "PayCallbackTest",
   "request_params": [
     {
@@ -3521,6 +3609,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "EntrustCallBackTest",
   "request_params": [
     {
@@ -3633,6 +3723,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "RefundCallbackTest",
   "request_params": [
     {
@@ -3717,6 +3809,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "ProtocolList",
   "request_params": [
     {
@@ -3969,6 +4063,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "ProtocolDetail",
   "request_params": [
     {
@@ -4037,6 +4133,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "Refund",
   "request_params": [
     {
@@ -4153,6 +4251,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "GetRelation",
   "request_params": [
     {
@@ -4225,6 +4325,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "TestWithhold",
   "request_params": [
     {
@@ -4275,6 +4377,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "TestInsurePush",
   "request_params": [
     {
@@ -4312,6 +4416,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "TestRenewInsurePush",
   "response": {
     "type": "object",
@@ -4337,6 +4443,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "TestInsureRenewRepush",
   "request_params": [
     {
@@ -4382,6 +4490,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "TestInsureFailPush",
   "response": {
     "type": "object",
@@ -4407,6 +4517,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "TestRenewSuccessEvent",
   "request_params": [
     {
@@ -4450,6 +4562,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "TestHealthAnswerHistoryPush",
   "request_params": [
     {
@@ -4495,6 +4609,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "TestGetWechatExit",
   "request_params": [
     {
@@ -4541,6 +4657,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "TestProcessUnEntrustUsers",
   "response": {
     "type": "object",
@@ -4566,6 +4684,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "TestDailyRenewEntrustReminder",
   "response": {
     "type": "object",
@@ -4591,6 +4711,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "StartWithholdTask",
   "request_params": [
     {
@@ -4636,6 +4758,8 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
   "handler": "CloseWithholdTask",
   "request_params": [
     {
@@ -4682,21 +4806,29 @@
 
 📋 Handler分析结果:
 {
+  "package_name": "middleware",
+  "package_path": "code.qschou.com/health/go_equity_package/routers/middleware",
   "handler": "NoCache"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "middleware",
+  "package_path": "code.qschou.com/health/go_equity_package/routers/middleware",
   "handler": "Options"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "middleware",
+  "package_path": "code.qschou.com/health/go_equity_package/routers/middleware",
   "handler": "Secure"
 }
 
 📋 Handler分析结果:
 {
+  "package_name": "middleware",
+  "package_path": "code.qschou.com/health/go_equity_package/routers/middleware",
   "handler": "OrderAccess"
 }
 

@@ -14,11 +14,13 @@ type APIInfo struct {
 
 // RouteInfo 代表单个API路由的信息
 type RouteInfo struct {
-	Method   string       `json:"method"`   // HTTP方法 (GET, POST, PUT, DELETE等)
-	Path     string       `json:"path"`     // 路由路径
-	Handler  string       `json:"handler"`  // 处理函数名称
-	Request  RequestInfo  `json:"request"`  // 请求信息
-	Response ResponseInfo `json:"response"` // 响应信息
+	PackageName string       `json:"package_name"` // 包名
+	PackagePath string       `json:"package_path"` // 包路径
+	Method      string       `json:"method"`       // HTTP方法 (GET, POST, PUT, DELETE等)
+	Path        string       `json:"path"`         // 路由路径
+	Handler     string       `json:"handler"`      // 处理函数名称
+	Request     RequestInfo  `json:"request"`      // 请求信息
+	Response    ResponseInfo `json:"response"`     // 响应信息
 }
 
 // RequestInfo 代表API请求的信息
@@ -121,22 +123,22 @@ type RouterGroupFunction struct {
 
 // ResponseFunction 代表响应封装函数的信息
 type ResponseFunction struct {
-	PackagePath      string            `json:"package_path"`      // 包路径
-	FunctionName     string            `json:"function_name"`     // 函数名称
-	FuncDecl         *ast.FuncDecl     `json:"-"`                 // 函数声明（不序列化）
-	Package          *packages.Package `json:"-"`                 // 所属包（不序列化）
-	ContextParamIdx  int               `json:"context_param_idx"` // gin.Context参数在参数列表中的索引
-	DataParamIdx     int               `json:"data_param_idx"`    // 业务数据参数索引 (-1表示没有)
-	JSONCallSite     *ast.CallExpr     `json:"-"`                 // 内部JSON调用的位置
-	BaseResponse     *FieldInfo        `json:"base_response"`     // 基础响应结构
-	DataFieldPath    string            `json:"data_field_path"`   // 业务数据在基础响应中的字段路径 (如"Data")
-	UniqueKey        string            `json:"unique_key"`        // 唯一标识 (packagePath+functionName)
-	IsSuccessFunc    bool              `json:"is_success_func"`   // 是否为成功响应函数
+	PackagePath     string            `json:"package_path"`      // 包路径
+	FunctionName    string            `json:"function_name"`     // 函数名称
+	FuncDecl        *ast.FuncDecl     `json:"-"`                 // 函数声明（不序列化）
+	Package         *packages.Package `json:"-"`                 // 所属包（不序列化）
+	ContextParamIdx int               `json:"context_param_idx"` // gin.Context参数在参数列表中的索引
+	DataParamIdx    int               `json:"data_param_idx"`    // 业务数据参数索引 (-1表示没有)
+	JSONCallSite    *ast.CallExpr     `json:"-"`                 // 内部JSON调用的位置
+	BaseResponse    *FieldInfo        `json:"base_response"`     // 基础响应结构
+	DataFieldPath   string            `json:"data_field_path"`   // 业务数据在基础响应中的字段路径 (如"Data")
+	UniqueKey       string            `json:"unique_key"`        // 唯一标识 (packagePath+functionName)
+	IsSuccessFunc   bool              `json:"is_success_func"`   // 是否为成功响应函数
 }
 
 // ResponseFunctionAnalysis 响应函数分析结果
 type ResponseFunctionAnalysis struct {
-	Functions           map[string]*ResponseFunction `json:"functions"`            // 所有响应函数的映射
+	Functions           map[string]*ResponseFunction `json:"functions"`             // 所有响应函数的映射
 	SuccessFunctions    []string                     `json:"success_functions"`     // 成功响应函数列表
 	ErrorFunctions      []string                     `json:"error_functions"`       // 错误响应函数列表
 	DirectJSONFunctions []string                     `json:"direct_json_functions"` // 直接调用JSON的函数列表

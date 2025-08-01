@@ -10,11 +10,11 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            // "program": "${workspaceFolder}/cmd/my-tool/main.go",
-            // "args": ["-path", "/Users/yoge/dev/go/src/code.qschou.com/insur_arc/policy_admin", "-framework", "gin"]
+            "program": "${workspaceFolder}/cmd/my-tool/main.go",
+            "args": ["-path", "/Users/yoge/dev/go/src/code.qschou.com/insur_arc/policy_admin", "-framework", "gin"]
             // "args": ["-path", "/Users/yoge/dev/go/src/go_equity_package", "-framework", "gin"]
-            "program": "${workspaceFolder}/qwen_main.go",
-            "args": ["/Users/yoge/dev/go/src/go_equity_package"]
+            // "program": "${workspaceFolder}/qwen_main.go",
+            // "args": ["/Users/yoge/dev/go/src/go_equity_package"]
         }
     ]
 }

@@ -1,4 +1,4 @@
-package main
+package helper
 
 import (
 	"encoding/json"
@@ -34,6 +34,8 @@ type RequestParamInfo struct {
 
 // Handler分析结果 (包含请求和响应)
 type HandlerAnalysisResult struct {
+	PackageName   string             `json:"package_name"`
+	PackagePath   string             `json:"package_path"`
 	HandlerName   string             `json:"handler"`
 	RequestParams []RequestParamInfo `json:"request_params,omitempty"`
 	Response      *APISchema         `json:"response,omitempty"`
@@ -1691,7 +1693,8 @@ func NewGinHandlerAnalyzer(dir string) (*GinHandlerAnalyzer, error) {
 }
 
 // 分析所有 Gin Handler
-func (a *GinHandlerAnalyzer) Analyze() {
+func (a *GinHandlerAnalyzer) Analyze() map[string]*HandlerAnalysisResult {
+	results := make(map[string]*HandlerAnalysisResult)
 	for _, pkg := range a.pkgs {
 		if pkg.Types == nil {
 			continue
@@ -1718,11 +1721,13 @@ func (a *GinHandlerAnalyzer) Analyze() {
 					if jsonData, err := json.MarshalIndent(result, "", "  "); err == nil {
 						fmt.Printf("📋 Handler分析结果:\n%s\n\n", string(jsonData))
 					}
+					results[result.PackagePath+"."+result.HandlerName] = result
 				}
 				return true
 			})
 		}
 	}
+	return results
 }
 
 // 检查是否是 Gin Handler
@@ -1742,6 +1747,8 @@ func (a *GinHandlerAnalyzer) isGinHandler(funcDecl *ast.FuncDecl, info *types.In
 // 完整分析Handler（包含请求参数和响应）
 func (engine *ResponseParsingEngine) AnalyzeHandlerComplete(handlerDecl *ast.FuncDecl, pkg *packages.Package) *HandlerAnalysisResult {
 	result := &HandlerAnalysisResult{
+		PackageName: pkg.Name,
+		PackagePath: pkg.PkgPath,
 		HandlerName: handlerDecl.Name.Name,
 	}
 

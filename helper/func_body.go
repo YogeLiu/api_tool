@@ -380,41 +380,6 @@ func (engine *ResponseParsingEngine) extractStructTags(named *types.Named, struc
 	}
 }
 
-// // 构建参数→字段映射 (技术规范关键创新)
-// func (engine *ResponseParsingEngine) buildParamToFieldMap(pkg *packages.Package) {
-// 	for funcObj := range engine.globalMappings.ResponseWrappers {
-// 		// 查找函数定义
-// 		funcDecl := engine.findFunctionDeclaration(funcObj, pkg)
-// 		if funcDecl == nil || funcDecl.Body == nil {
-// 			continue
-// 		}
-
-// 		// 分析函数体中的return语句
-// 		fieldMapping := make(map[string]int)
-
-// 		ast.Inspect(funcDecl.Body, func(node ast.Node) bool {
-// 			if retStmt, ok := node.(*ast.ReturnStmt); ok && len(retStmt.Results) > 0 {
-// 				// 检查返回值是否为结构体字面量
-// 				if compLit, ok := retStmt.Results[0].(*ast.CompositeLit); ok {
-// 					engine.analyzeStructLiteralMapping(compLit, funcDecl, fieldMapping, pkg)
-// 				}
-// 				// 检查返回值是否为结构体指针字面量
-// 				if unaryExpr, ok := retStmt.Results[0].(*ast.UnaryExpr); ok && unaryExpr.Op == token.AND {
-// 					if compLit, ok := unaryExpr.X.(*ast.CompositeLit); ok {
-// 						engine.analyzeStructLiteralMapping(compLit, funcDecl, fieldMapping, pkg)
-// 					}
-// 				}
-// 			}
-// 			return true
-// 		})
-
-// 		if len(fieldMapping) > 0 {
-// 			// TODO: 更新参数映射到新的结构
-// 			fmt.Printf("[DEBUG] 函数 %s 参数映射: %v (旧实现)\n", funcObj.Name(), fieldMapping)
-// 		}
-// 	}
-// }
-
 // 分析结构体字面量中的参数映射
 func (engine *ResponseParsingEngine) analyzeStructLiteralMapping(
 	compLit *ast.CompositeLit,
@@ -463,20 +428,6 @@ func (engine *ResponseParsingEngine) getParameterIndex(obj types.Object, funcDec
 	return -1
 }
 
-// 查找函数声明
-// func (engine *ResponseParsingEngine) findFunctionDeclaration(funcObj *types.Func, pkg *packages.Package) *ast.FuncDecl {
-// 	for _, file := range pkg.Syntax {
-// 		for _, decl := range file.Decls {
-// 			if funcDecl, ok := decl.(*ast.FuncDecl); ok {
-// 				if obj := pkg.TypesInfo.ObjectOf(funcDecl.Name); obj == funcObj {
-// 					return funcDecl
-// 				}
-// 			}
-// 		}
-// 	}
-// 	return nil
-// }
-
 // Handler解析阶段 (技术规范步骤2) - 核心响应表达式解析
 func (engine *ResponseParsingEngine) AnalyzeHandlerResponse(handlerDecl *ast.FuncDecl, pkg *packages.Package) *APISchema {
 	// 步骤1: 定位业务响应表达式（c.JSON调用或响应封装函数调用）
@@ -489,31 +440,6 @@ func (engine *ResponseParsingEngine) AnalyzeHandlerResponse(handlerDecl *ast.Fun
 	// 步骤2: 响应表达式类型解析（核心）
 	return engine.resolveResponseExpression(responseExpr, pkg)
 }
-
-// // 定位最后一个c.JSON调用的响应表达式
-// func (engine *ResponseParsingEngine) findLastJSONCallExpression(handlerDecl *ast.FuncDecl, pkg *packages.Package) ast.Expr {
-// 	var lastJSONExpr ast.Expr
-
-// 	if handlerDecl.Body == nil {
-// 		return nil
-// 	}
-
-// 	ast.Inspect(handlerDecl.Body, func(node ast.Node) bool {
-// 		if callExpr, ok := node.(*ast.CallExpr); ok {
-// 			// 检查是否为c.JSON调用
-// 			if engine.isGinJSONCall(callExpr, pkg) {
-// 				// 获取第二个参数（响应体表达式）
-// 				if len(callExpr.Args) >= 2 {
-// 					lastJSONExpr = callExpr.Args[1]
-// 					fmt.Printf("[DEBUG] 找到c.JSON调用，响应表达式类型: %T\n", lastJSONExpr)
-// 				}
-// 			}
-// 		}
-// 		return true
-// 	})
-
-// 	return lastJSONExpr
-// }
 
 // 检查是否为gin.Context的JSON调用
 func (engine *ResponseParsingEngine) isGinJSONCall(callExpr *ast.CallExpr, pkg *packages.Package) bool {
@@ -564,116 +490,6 @@ func (engine *ResponseParsingEngine) resolveResponseExpression(expr ast.Expr, pk
 	}
 }
 
-// 解析函数调用 (参数类型注入的关键实现)
-func (engine *ResponseParsingEngine) resolveFunctionCall(callExpr *ast.CallExpr, pkg *packages.Package) *APISchema {
-	// 1. 获取调用函数对象
-	funcObj := engine.getFunctionObject(callExpr, pkg)
-	if funcObj == nil {
-		fmt.Printf("[DEBUG] 无法获取函数对象\n")
-		return engine.resolveFallbackType(callExpr, pkg)
-	}
-
-	// 2. 检查是否为封装函数
-	if wrapper, ok := engine.globalMappings.ResponseWrappers[funcObj]; ok {
-		structType := wrapper.ReturnType
-		if structType != nil {
-			fmt.Printf("[DEBUG] 发现封装函数: %s -> %s\n", funcObj.Name(), structType.Obj().Name())
-			// 3. 参数类型注入（关键！）
-			return engine.injectParameterTypes(structType, funcObj, callExpr.Args, pkg)
-		} else {
-			// 对于void函数，直接分析Handler中传入的参数
-			fmt.Printf("[DEBUG] 发现void封装函数: %s，直接分析传入参数\n", funcObj.Name())
-			return engine.analyzeWrapperFunctionArgs(wrapper, callExpr.Args, pkg)
-		}
-	}
-
-	// 4. 非封装函数：解析返回类型并尝试参数类型注入
-	returnType := pkg.TypesInfo.TypeOf(callExpr)
-	if returnType != nil {
-		schema := engine.resolveType(returnType, engine.maxDepth)
-
-		// 对于不同类型的返回值进行特殊处理
-		if schema != nil {
-			// 1. 处理 Response 类型的参数注入
-			if schema.Properties != nil {
-				if dataField, exists := schema.Properties["Data"]; exists && dataField.Type == "any" {
-					fmt.Printf("[DEBUG] 普通函数返回Response类型，尝试参数类型注入\n")
-					// 查找data参数 (通常是第二个参数，第一个是context)
-					if len(callExpr.Args) >= 2 {
-						dataArg := callExpr.Args[1] // 通常data是第二个参数
-						dataType := pkg.TypesInfo.TypeOf(dataArg)
-						if dataType != nil {
-							fmt.Printf("[DEBUG] 普通函数data参数类型: %s\n", dataType.String())
-							injectedSchema := engine.resolveType(dataType, engine.maxDepth)
-							fmt.Printf("[DEBUG] ✅ 普通函数参数类型注入成功: Data字段 interface{} -> %s\n", injectedSchema.Type)
-							schema.Properties["Data"] = injectedSchema
-						}
-					}
-				}
-			}
-
-			// 2. 处理 gin.H (map[string]interface{}) 类型
-			if schema.Type == "H" || (schema.Description != "" && strings.Contains(schema.Description, "map[string]")) {
-				fmt.Printf("[DEBUG] 发现gin.H类型，尝试解析map字面量\n")
-				mapSchema := engine.analyzeMapLiteralFromFunction(funcObj, callExpr.Args, pkg)
-				if mapSchema != nil {
-					return mapSchema
-				}
-			}
-		}
-
-		return schema
-	}
-
-	return &APISchema{Type: "unknown", Description: "unable to resolve function return type"}
-}
-
-// 分析void封装函数 (不返回值但内部调用c.JSON)
-func (engine *ResponseParsingEngine) analyzeVoidWrapperFunction(wrapper *ResponseWrapperFunc, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
-	fmt.Printf("[DEBUG] 分析void封装函数，当前包: %s\n", pkg.PkgPath)
-	// 分析内部c.JSON调用的第二个参数 (响应体)
-	if wrapper.JSONCallSite != nil && len(wrapper.JSONCallSite.Args) >= 2 {
-		responseArg := wrapper.JSONCallSite.Args[1]
-
-		// 如果是函数调用，递归解析并注入参数类型
-		if callExpr, ok := responseArg.(*ast.CallExpr); ok {
-			fmt.Printf("[DEBUG] 分析内部函数调用: %T\n", callExpr.Fun)
-			// 获取内部调用的函数对象
-			innerFuncObj := engine.getFunctionObject(callExpr, pkg)
-			if innerFuncObj != nil {
-				fmt.Printf("[DEBUG] 内部函数名: %s\n", innerFuncObj.Name())
-				// 获取内部函数的返回类型
-				if sig := innerFuncObj.Type().(*types.Signature); sig.Results().Len() > 0 {
-					returnType := sig.Results().At(0).Type()
-					fmt.Printf("[DEBUG] 内部函数返回类型原始: %s\n", returnType.String())
-					if namedType, ok := returnType.(*types.Named); ok {
-						fmt.Printf("[DEBUG] 内部函数返回类型: %s\n", namedType.Obj().Name())
-						// 参数类型注入：将外部调用的参数类型注入到内部函数的返回结构中
-						return engine.injectParameterTypesToResponse(namedType, callArgs, wrapper, pkg)
-					} else if ptrType, ok := returnType.(*types.Pointer); ok {
-						if namedType, ok := ptrType.Elem().(*types.Named); ok {
-							fmt.Printf("[DEBUG] 内部函数返回指针类型: %s\n", namedType.Obj().Name())
-							// 参数类型注入：将外部调用的参数类型注入到内部函数的返回结构中
-							return engine.injectParameterTypesToResponse(namedType, callArgs, wrapper, pkg)
-						}
-					}
-				}
-			} else {
-				fmt.Printf("[DEBUG] 无法解析内部函数对象\n")
-			}
-			return engine.resolveResponseExpression(callExpr, pkg)
-		}
-
-		// 如果是复合字面量，直接解析类型
-		argType := pkg.TypesInfo.TypeOf(responseArg)
-		if argType != nil {
-			return engine.resolveType(argType, engine.maxDepth)
-		}
-	}
-
-	return &APISchema{Type: "unknown", Description: "unable to analyze void wrapper function"}
-}
-
 // 直接分析封装函数的参数 (简化版本)
 func (engine *ResponseParsingEngine) analyzeWrapperFunctionArgs(wrapper *ResponseWrapperFunc, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
 	fmt.Printf("[DEBUG] 直接分析封装函数参数，参数数量: %d，数据参数索引: %d\n", len(callArgs), wrapper.DataParamIdx)
@@ -703,90 +519,13 @@ func (engine *ResponseParsingEngine) analyzeWrapperFunctionArgs(wrapper *Respons
 			// 替换 Data 字段的类型信息
 			responseSchema.Properties["data"] = injectedSchema
 		} else {
-			// fmt.Printf("[DEBUG] ❌ 无法获取数据参数类型\n")
+			fmt.Printf("[DEBUG] ❌ 无法获取数据参数类型\n")
 		}
 	} else {
-		// fmt.Printf("[DEBUG] ❌ 数据参数索引无效: %d >= %d\n", wrapper.DataParamIdx, len(callArgs))
+		fmt.Printf("[DEBUG] ❌ 数据参数索引无效: %d >= %d\n", wrapper.DataParamIdx, len(callArgs))
 	}
 
 	return responseSchema
-}
-
-// 分析函数返回的map字面量 (用于gin.H等类型)
-func (engine *ResponseParsingEngine) analyzeMapLiteralFromFunction(funcObj *types.Func, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
-	// 查找函数定义
-	funcDecl := engine.findFunctionDeclaration(funcObj, pkg)
-	if funcDecl == nil || funcDecl.Body == nil {
-		fmt.Printf("[DEBUG] 无法找到函数定义或函数体\n")
-		return nil
-	}
-
-	fmt.Printf("[DEBUG] 分析函数 %s 的返回语句\n", funcObj.Name())
-
-	// 查找return语句中的map字面量
-	var mapLiteral *ast.CompositeLit
-	ast.Inspect(funcDecl.Body, func(node ast.Node) bool {
-		if retStmt, ok := node.(*ast.ReturnStmt); ok && len(retStmt.Results) > 0 {
-			// 检查是否为复合字面量 (map literal)
-			if compLit, ok := retStmt.Results[0].(*ast.CompositeLit); ok {
-				mapLiteral = compLit
-				return false // 找到后停止搜索
-			}
-		}
-		return true
-	})
-
-	if mapLiteral == nil {
-		fmt.Printf("[DEBUG] 未找到map字面量\n")
-		return nil
-	}
-
-	fmt.Printf("[DEBUG] 找到map字面量，包含 %d 个元素\n", len(mapLiteral.Elts))
-
-	// 解析map字面量的字段
-	properties := make(map[string]*APISchema)
-
-	for i, elt := range mapLiteral.Elts {
-		if kv, ok := elt.(*ast.KeyValueExpr); ok {
-			// 获取key
-			var keyName string
-			if basicLit, ok := kv.Key.(*ast.BasicLit); ok && basicLit.Kind == token.STRING {
-				// 字符串字面量（如 gin.H{"key": value}）
-				keyName = strings.Trim(basicLit.Value, "`\"")
-			} else if ident, ok := kv.Key.(*ast.Ident); ok {
-				// 标识符（如 struct{Field: value}）
-				keyName = ident.Name
-			} else {
-				keyName = fmt.Sprintf("field_%d", i)
-			}
-
-			// 获取value的类型
-			var valueSchema *APISchema
-			if valueType := pkg.TypesInfo.TypeOf(kv.Value); valueType != nil {
-				// 特殊处理：如果value是参数，则使用参数的实际类型
-				if ident, ok := kv.Value.(*ast.Ident); ok {
-					if paramType := engine.getParameterType(ident.Name, funcDecl, callArgs, pkg); paramType != nil {
-						valueSchema = engine.resolveType(paramType, engine.maxDepth)
-						fmt.Printf("[DEBUG] 参数 %s 类型注入: %s -> %s\n", ident.Name, valueType.String(), paramType.String())
-					} else {
-						valueSchema = engine.resolveType(valueType, engine.maxDepth)
-					}
-				} else {
-					valueSchema = engine.resolveType(valueType, engine.maxDepth)
-				}
-			} else {
-				valueSchema = &APISchema{Type: "any", Description: "interface{}"}
-			}
-
-			properties[keyName] = valueSchema
-			fmt.Printf("[DEBUG] 解析字段: %s -> %s\n", keyName, valueSchema.Type)
-		}
-	}
-
-	return &APISchema{
-		Type:       "object",
-		Properties: properties,
-	}
 }
 
 // 获取参数的实际类型 (用于类型注入)
@@ -1075,46 +814,6 @@ func (engine *ResponseParsingEngine) resolveSelectorExprRecursive(selExpr *ast.S
 	return engine.resolveSelectorExpr(selExpr, pkg)
 }
 
-// 参数类型注入到响应结构 (技术规范核心创新)
-func (engine *ResponseParsingEngine) injectParameterTypesToResponse(responseType *types.Named, callArgs []ast.Expr, wrapper *ResponseWrapperFunc, pkg *packages.Package) *APISchema {
-	fmt.Printf("[DEBUG] 开始参数类型注入，响应类型: %s，参数数量: %d，数据参数索引: %d\n", responseType.Obj().Name(), len(callArgs), wrapper.DataParamIdx)
-
-	// 基础解析响应结构
-	schema := engine.resolveType(responseType, engine.maxDepth)
-
-	// 参数类型注入：找到 Data 字段并注入具体类型
-	if schema.Properties != nil {
-		fmt.Printf("[DEBUG] 发现 %d 个属性\n", len(schema.Properties))
-		if dataField, exists := schema.Properties["data"]; exists && dataField.Type == "any" {
-			fmt.Printf("[DEBUG] 找到Data字段，类型为: %s\n", dataField.Type)
-			// 获取传入的 data 参数的具体类型 (通常是第二个参数)
-			if wrapper.DataParamIdx >= 0 && wrapper.DataParamIdx < len(callArgs) {
-				dataArg := callArgs[wrapper.DataParamIdx]
-				fmt.Printf("[DEBUG] 分析参数[%d]: %T\n", wrapper.DataParamIdx, dataArg)
-				dataType := pkg.TypesInfo.TypeOf(dataArg)
-				if dataType != nil {
-					fmt.Printf("[DEBUG] 参数类型: %s\n", dataType.String())
-					injectedSchema := engine.resolveType(dataType, engine.maxDepth)
-					fmt.Printf("[DEBUG] 参数类型注入: Data字段从 interface{} -> %s\n", injectedSchema.Type)
-
-					// 替换 Data 字段的类型信息
-					schema.Properties["data"] = injectedSchema
-				} else {
-					fmt.Printf("[DEBUG] 无法获取参数类型\n")
-				}
-			} else {
-				fmt.Printf("[DEBUG] 参数索引无效: %d >= %d\n", wrapper.DataParamIdx, len(callArgs))
-			}
-		} else {
-			fmt.Printf("[DEBUG] 未找到data字段或类型不是any\n")
-		}
-	} else {
-		fmt.Printf("[DEBUG] 响应结构没有属性\n")
-	}
-
-	return schema
-}
-
 // 获取函数对象
 func (engine *ResponseParsingEngine) getFunctionObject(callExpr *ast.CallExpr, pkg *packages.Package) *types.Func {
 	switch fun := callExpr.Fun.(type) {
@@ -1139,63 +838,6 @@ func (engine *ResponseParsingEngine) getFunctionObject(callExpr *ast.CallExpr, p
 		}
 	}
 	return nil
-}
-
-// 查找函数所属的包
-func (engine *ResponseParsingEngine) findPackageForFunction(funcObj *types.Func) *packages.Package {
-	for _, pkg := range engine.allPackages {
-		scope := pkg.Types.Scope()
-		for _, name := range scope.Names() {
-			if obj := scope.Lookup(name); obj == funcObj {
-				return pkg
-			}
-		}
-	}
-	return nil
-}
-
-// 参数类型注入 (技术规范关键创新)
-func (engine *ResponseParsingEngine) injectParameterTypes(
-	structType *types.Named,
-	funcObj *types.Func,
-	args []ast.Expr,
-	pkg *packages.Package) *APISchema {
-
-	fmt.Printf("[DEBUG] 开始参数类型注入: %s\n", structType.Obj().Name())
-
-	// 1. 复制原始结构体定义
-	schema := engine.resolveType(structType, engine.maxDepth)
-
-	// 2. 获取字段→参数映射
-	if wrapper, exists := engine.globalMappings.ResponseWrappers[funcObj]; exists {
-		fieldToParam := wrapper.ParamToFieldMap
-		fmt.Printf("[DEBUG] 找到参数映射: %v\n", fieldToParam)
-
-		// 3. 遍历每个映射，注入实际参数类型
-		for fieldName, paramIdx := range fieldToParam {
-			if paramIdx < len(args) {
-				// 4. 获取实际参数类型
-				argType := pkg.TypesInfo.TypeOf(args[paramIdx])
-				if argType != nil {
-					// 5. 递归解析参数类型并注入到对应字段
-					fieldSchema := engine.resolveType(argType, engine.maxDepth-1)
-
-					// 6. 更新字段类型（关键：注入实际类型）
-					if schema.Properties != nil && schema.Properties[fieldName] != nil {
-						// 保留原有的JSON Tag，但更新类型和子结构
-						originalJSONTag := schema.Properties[fieldName].JSONTag
-						schema.Properties[fieldName] = fieldSchema
-						schema.Properties[fieldName].JSONTag = originalJSONTag
-					}
-
-					fmt.Printf("[DEBUG] 注入参数类型: %s.%s <- %s\n",
-						structType.Obj().Name(), fieldName, argType.String())
-				}
-			}
-		}
-	}
-
-	return schema
 }
 
 // 解析直接结构体字面量
@@ -2095,161 +1737,6 @@ func (a *GinHandlerAnalyzer) isGinHandler(funcDecl *ast.FuncDecl, info *types.In
 		return strings.Contains(typeStr, "gin.Context")
 	}
 	return false
-}
-
-// 获取函数签名
-func getFuncSignature(funcDecl *ast.FuncDecl) string {
-	receiver := ""
-	if funcDecl.Recv != nil && len(funcDecl.Recv.List) > 0 {
-		receiver = types.ExprString(funcDecl.Recv.List[0].Type) + "."
-	}
-	return receiver + funcDecl.Name.Name
-}
-
-// 分析 Handler 响应
-func (a *GinHandlerAnalyzer) analyzeHandlerResponse(funcDecl *ast.FuncDecl, analyzer *ResponseAnalyzer) *APIResponse {
-	for _, stmt := range funcDecl.Body.List {
-		exprStmt, ok := stmt.(*ast.ExprStmt)
-		if !ok {
-			continue
-		}
-
-		callExpr, ok := exprStmt.X.(*ast.CallExpr)
-		if !ok {
-			continue
-		}
-
-		if !a.isJSONCall(callExpr, analyzer.pkg.TypesInfo) {
-			continue
-		}
-
-		if len(callExpr.Args) < 2 {
-			continue
-		}
-
-		// 获取第二个参数（响应数据）并递归深度解析
-		dataExpr := callExpr.Args[1]
-		return analyzer.AnalyzeResponseRecursively(dataExpr)
-	}
-	return nil
-}
-
-// 检查是否是 c.JSON 调用
-func (a *GinHandlerAnalyzer) isJSONCall(callExpr *ast.CallExpr, info *types.Info) bool {
-	if selector, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
-		if ident, ok := selector.X.(*ast.Ident); ok {
-			if obj := info.ObjectOf(ident); obj != nil {
-				if named, ok := obj.Type().(*types.Named); ok {
-					return named.Obj().Name() == "Context"
-				}
-			}
-		}
-		return selector.Sel.Name == "JSON"
-	}
-	return false
-}
-
-// 打印响应结构
-func printResponseSchema(resp *APIResponse, indent int) {
-	prefix := strings.Repeat("  ", indent-2)
-
-	// 为不同响应类型添加说明
-	typeDescription := resp.ResponseType
-	switch resp.ResponseType {
-	case "map-literal":
-		typeDescription = "map-literal (⚠️ 非标准响应，建议使用包装函数)"
-	case "wrapped-success":
-		typeDescription = "wrapped-success (✅ 标准成功响应)"
-	case "wrapped-error":
-		typeDescription = "wrapped-error (❌ 标准错误响应)"
-	}
-
-	fmt.Printf("%s📌 响应类型: %s\n", prefix, typeDescription)
-	fmt.Printf("%s  实际数据类型: %s\n", prefix, resp.DataRealType)
-
-	if len(resp.Fields) > 0 {
-		fmt.Printf("%s  字段结构:\n", prefix)
-		printFieldSchema(resp.Fields, indent)
-	}
-}
-
-// 递归打印字段结构
-func printFieldSchema(fields map[string]FieldSchema, indent int) {
-	prefix := strings.Repeat("  ", indent)
-	for name, schema := range fields {
-		typeStr := schema.Type
-		if schema.IsPointer {
-			typeStr = "*" + typeStr
-		}
-		if schema.IsArray {
-			typeStr = "[]" + typeStr
-		}
-
-		fmt.Printf("%s- %s (%s) → json: %q\n", prefix, name, typeStr, schema.JSONTag)
-		if len(schema.Children) > 0 {
-			printFieldSchema(schema.Children, indent+2)
-		}
-	}
-}
-
-// 打印API Schema (新引擎输出格式)
-func printAPISchema(schema *APISchema, indent int) {
-	if schema == nil {
-		return
-	}
-
-	prefix := strings.Repeat("  ", indent-2)
-
-	fmt.Printf("%s📌 类型: %s", prefix, schema.Type)
-	if schema.Description != "" {
-		fmt.Printf(" (%s)", schema.Description)
-	}
-	fmt.Printf("\n")
-
-	if schema.JSONTag != "" {
-		fmt.Printf("%s  JSON标签: %q\n", prefix, schema.JSONTag)
-	}
-
-	if schema.Items != nil {
-		fmt.Printf("%s  数组元素:\n", prefix)
-		printAPISchema(schema.Items, indent+2)
-	}
-
-	if len(schema.Properties) > 0 {
-		fmt.Printf("%s  字段:\n", prefix)
-		printAPISchemaProperties(schema.Properties, indent+1)
-	}
-}
-
-// 打印API Schema属性
-func printAPISchemaProperties(properties map[string]*APISchema, indent int) {
-	prefix := strings.Repeat("  ", indent)
-	for name, prop := range properties {
-		jsonTag := prop.JSONTag
-		if jsonTag == "" {
-			jsonTag = name
-		}
-
-		fmt.Printf("%s- %s: %s", prefix, name, prop.Type)
-		if prop.JSONTag != "" && prop.JSONTag != name {
-			fmt.Printf(" → json: %q", prop.JSONTag)
-		}
-		if prop.Description != "" {
-			fmt.Printf(" (%s)", prop.Description)
-		}
-		fmt.Printf("\n")
-
-		if prop.Items != nil {
-			fmt.Printf("%s  └─ 数组元素: %s\n", prefix, prop.Items.Type)
-			if len(prop.Items.Properties) > 0 {
-				printAPISchemaProperties(prop.Items.Properties, indent+2)
-			}
-		}
-
-		if len(prop.Properties) > 0 {
-			printAPISchemaProperties(prop.Properties, indent+1)
-		}
-	}
 }
 
 // 完整分析Handler（包含请求参数和响应）

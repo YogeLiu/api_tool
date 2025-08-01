@@ -768,7 +768,7 @@ func (engine *ResponseParsingEngine) performGlobalPreprocessing() {
 func (engine *ResponseParsingEngine) preprocessPackage(pkg *packages.Package) {
 	// 构建结构体标签映射
 	engine.buildStructTagMap(pkg)
-	
+
 	// 识别响应封装函数
 	engine.identifyResponseWrapperFunctions(pkg)
 }
@@ -948,8 +948,8 @@ func (engine *ResponseParsingEngine) isGinJSONCall(callExpr *ast.CallExpr, pkg *
 				}
 				// 检查是否为gin.Context
 				if named, ok := objType.(*types.Named); ok {
-					return named.Obj().Name() == "Context" && 
-						   (named.Obj().Pkg() == nil || named.Obj().Pkg().Path() == "github.com/gin-gonic/gin")
+					return named.Obj().Name() == "Context" &&
+						(named.Obj().Pkg() == nil || named.Obj().Pkg().Path() == "github.com/gin-gonic/gin")
 				}
 			}
 		}
@@ -1105,25 +1105,25 @@ func (engine *ResponseParsingEngine) resolveType(typ types.Type, depth int) *API
 func (engine *ResponseParsingEngine) resolveNamedType(named *types.Named, depth int) *APISchema {
 	// 检查底层类型
 	underlying := named.Underlying()
-	
+
 	if structType, ok := underlying.(*types.Struct); ok {
 		schema := engine.resolveStructType(structType, depth)
 		schema.Description = named.Obj().Name()
 		return schema
 	}
-	
+
 	return engine.resolveType(underlying, depth)
 }
 
 // resolveStructType 解析结构体类型
 func (engine *ResponseParsingEngine) resolveStructType(structType *types.Struct, depth int) *APISchema {
 	properties := make(map[string]*APISchema)
-	
+
 	for i := 0; i < structType.NumFields(); i++ {
 		field := structType.Field(i)
 		if field.Exported() {
 			fieldSchema := engine.resolveType(field.Type(), depth)
-			
+
 			// 设置JSON标签
 			if structType.Tag(i) != "" {
 				if jsonTag := reflect.StructTag(structType.Tag(i)).Get("json"); jsonTag != "" {
@@ -1137,12 +1137,12 @@ func (engine *ResponseParsingEngine) resolveStructType(structType *types.Struct,
 					}
 				}
 			}
-			
+
 			// 使用字段名作为键
 			properties[field.Name()] = fieldSchema
 		}
 	}
-	
+
 	return &APISchema{
 		Type:       "object",
 		Properties: properties,
@@ -1155,7 +1155,7 @@ func (engine *ResponseParsingEngine) resolveBasicType(basic *types.Basic) *APISc
 	case types.String:
 		return &APISchema{Type: "string"}
 	case types.Int, types.Int8, types.Int16, types.Int32, types.Int64,
-		 types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64:
+		types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64:
 		return &APISchema{Type: "integer"}
 	case types.Float32, types.Float64:
 		return &APISchema{Type: "number"}
@@ -1613,7 +1613,7 @@ func (g *GinExtractor) analyzeUnifiedResponseExpression(responseExpr ast.Expr, p
 func (g *GinExtractor) analyzeResponseFunctionCall(callExpr *ast.CallExpr, pkg *packages.Package) *APISchema {
 	funcName := g.extractFunctionName(callExpr)
 	fmt.Printf("[DEBUG] analyzeResponseFunctionCall: 动态分析函数调用: %s\n", funcName)
-	
+
 	// 1. 首先检查是否为预识别的响应封装函数
 	funcObj := g.parsingEngine.getFunctionObject(callExpr, pkg)
 	if funcObj != nil {
@@ -1622,7 +1622,7 @@ func (g *GinExtractor) analyzeResponseFunctionCall(callExpr *ast.CallExpr, pkg *
 			return g.analyzePreIdentifiedWrapperFunction(wrapper, callExpr.Args, pkg)
 		}
 	}
-	
+
 	// 2. 动态分析：查找函数定义并分析其内部逻辑
 	return g.analyzeDynamicFunctionCall(callExpr, pkg)
 }
@@ -1744,7 +1744,7 @@ func (g *GinExtractor) findReturnExpression(funcDecl *ast.FuncDecl) ast.Expr {
 		if retStmt, ok := node.(*ast.ReturnStmt); ok {
 			if len(retStmt.Results) > 0 {
 				returnExpr = retStmt.Results[0] // 取第一个返回值
-				return false // 找到就停止
+				return false                    // 找到就停止
 			}
 		}
 		return true
@@ -1792,7 +1792,7 @@ func (g *GinExtractor) analyzeCompositeLiteralWithParamInjection(compLit *ast.Co
 			// 检查字段值是否为参数引用
 			if paramIdx := g.findParameterReference(kvExpr.Value, funcDecl); paramIdx >= 0 && paramIdx < len(callArgs) {
 				fmt.Printf("[DEBUG] 字段 %s 引用参数[%d]，进行类型注入\n", fieldName, paramIdx)
-				
+
 				// 获取调用时参数的类型
 				if typ := g.parsingEngine.getTypeInAllPackages(callArgs[paramIdx]); typ != nil {
 					paramSchema := g.parsingEngine.convertTypeToAPISchema(typ, pkg, 0)
@@ -2035,11 +2035,11 @@ func extractJSONTag(tag string) string {
 func (g *GinExtractor) isKnownResponseFunction(funcName string) bool {
 	knownFunctions := []string{
 		"sevice.ResponseOK", "ResponseOK",
-		"sevice.APIResponseOK", "APIResponseOK", 
+		"sevice.APIResponseOK", "APIResponseOK",
 		"sevice.ResponseData", "ResponseData",
 		"gin.H",
 	}
-	
+
 	for _, known := range knownFunctions {
 		if funcName == known {
 			return true
@@ -2052,7 +2052,7 @@ func (g *GinExtractor) isKnownResponseFunction(funcName string) bool {
 func (g *GinExtractor) extractBusinessDataFromResponseCall(callExpr *ast.CallExpr, pkg *packages.Package) *APISchema {
 	funcName := g.extractFunctionName(callExpr)
 	fmt.Printf("[DEBUG] extractBusinessDataFromResponseCall: 处理函数 %s\n", funcName)
-	
+
 	switch funcName {
 	case "sevice.ResponseOK", "ResponseOK":
 		// ResponseOK(ctx, data) - data 是第二个参数
@@ -2072,22 +2072,22 @@ func (g *GinExtractor) extractBusinessDataFromResponseCall(callExpr *ast.CallExp
 			return g.parsingEngine.resolveType(exprType, g.parsingEngine.maxDepth)
 		}
 	}
-	
+
 	return &APISchema{Type: "unknown"}
 }
 
 // handleResponseOKCall 处理 ResponseOK 函数调用
 func (g *GinExtractor) handleResponseOKCall(callExpr *ast.CallExpr, pkg *packages.Package) *APISchema {
 	fmt.Printf("[DEBUG] handleResponseOKCall: 处理 ResponseOK 调用\n")
-	
+
 	if len(callExpr.Args) < 2 {
 		return &APISchema{Type: "unknown"}
 	}
-	
+
 	// 获取 data 参数（第二个参数）
 	dataArg := callExpr.Args[1]
 	businessDataSchema := g.analyzeBusinessDataArgument(dataArg, pkg)
-	
+
 	// 构建完整的 Response 结构，将 interface{} 的 Data 字段替换为实际类型
 	return &APISchema{
 		Type: "object",
@@ -2103,15 +2103,15 @@ func (g *GinExtractor) handleResponseOKCall(callExpr *ast.CallExpr, pkg *package
 // handleAPIResponseOKCall 处理 APIResponseOK 函数调用
 func (g *GinExtractor) handleAPIResponseOKCall(callExpr *ast.CallExpr, pkg *packages.Package) *APISchema {
 	fmt.Printf("[DEBUG] handleAPIResponseOKCall: 处理 APIResponseOK 调用\n")
-	
+
 	if len(callExpr.Args) < 2 {
 		return &APISchema{Type: "unknown"}
 	}
-	
+
 	// APIResponseOK 内部调用 ResponseOK，所以返回相同的结构
 	dataArg := callExpr.Args[1]
 	businessDataSchema := g.analyzeBusinessDataArgument(dataArg, pkg)
-	
+
 	return &APISchema{
 		Type: "object",
 		Properties: map[string]*APISchema{
@@ -2126,15 +2126,15 @@ func (g *GinExtractor) handleAPIResponseOKCall(callExpr *ast.CallExpr, pkg *pack
 // handleResponseDataCall 处理 ResponseData 函数调用
 func (g *GinExtractor) handleResponseDataCall(callExpr *ast.CallExpr, pkg *packages.Package) *APISchema {
 	fmt.Printf("[DEBUG] handleResponseDataCall: 处理 ResponseData 调用\n")
-	
+
 	if len(callExpr.Args) < 2 {
 		return &APISchema{Type: "unknown"}
 	}
-	
+
 	// 获取 data 参数（第二个参数）
 	dataArg := callExpr.Args[1]
 	businessDataSchema := g.analyzeBusinessDataArgument(dataArg, pkg)
-	
+
 	// ResponseData 返回 gin.H 结构
 	return &APISchema{
 		Type: "object",
@@ -2159,7 +2159,7 @@ func (g *GinExtractor) handleGinHCall(callExpr *ast.CallExpr, pkg *packages.Pack
 // analyzeBusinessDataArgument 分析业务数据参数
 func (g *GinExtractor) analyzeBusinessDataArgument(dataArg ast.Expr, pkg *packages.Package) *APISchema {
 	fmt.Printf("[DEBUG] analyzeBusinessDataArgument: 分析业务数据参数，类型: %T\n", dataArg)
-	
+
 	switch arg := dataArg.(type) {
 	case *ast.Ident:
 		// 变量引用，如 user, book, users
@@ -2178,22 +2178,22 @@ func (g *GinExtractor) analyzeBusinessDataArgument(dataArg ast.Expr, pkg *packag
 			return g.parsingEngine.resolveType(exprType, g.parsingEngine.maxDepth)
 		}
 	}
-	
+
 	return &APISchema{Type: "unknown"}
 }
 
 // analyzeBusinessDataVariable 分析业务数据变量
 func (g *GinExtractor) analyzeBusinessDataVariable(ident *ast.Ident, pkg *packages.Package) *APISchema {
 	fmt.Printf("[DEBUG] analyzeBusinessDataVariable: 分析变量 %s\n", ident.Name)
-	
+
 	// 使用类型信息获取变量的实际类型
 	if obj := pkg.TypesInfo.ObjectOf(ident); obj != nil {
 		fmt.Printf("[DEBUG] analyzeBusinessDataVariable: 变量 %s 的类型: %s\n", ident.Name, obj.Type().String())
 		schema := g.parsingEngine.resolveType(obj.Type(), g.parsingEngine.maxDepth)
-		schema.JSONTag = "data"  // 设置JSON标签
+		schema.JSONTag = "data" // 设置JSON标签
 		return schema
 	}
-	
+
 	return &APISchema{Type: "unknown"}
 }
 
@@ -2233,7 +2233,7 @@ func (g *GinExtractor) resolveSelectorExpr(selExpr *ast.SelectorExpr, pkg *packa
 // ExtractRequest 提取请求信息 - 使用新的请求参数分析器
 func (g *GinExtractor) ExtractRequest(handlerDecl *ast.FuncDecl, typeInfo *types.Info, resolver TypeResolver) models.RequestInfo {
 	request := models.RequestInfo{}
-	
+
 	// 查找Handler所在的包
 	pkg := g.findPackageForHandlerDecl(handlerDecl)
 	if pkg == nil {
@@ -2248,7 +2248,7 @@ func (g *GinExtractor) ExtractRequest(handlerDecl *ast.FuncDecl, typeInfo *types
 	for _, param := range params {
 		fieldInfo := g.convertAPISchemaToFieldInfo(param.ParamSchema)
 		fieldInfo.Name = param.ParamName
-		
+
 		switch param.ParamType {
 		case "query":
 			request.Query = append(request.Query, *fieldInfo)
@@ -2312,7 +2312,7 @@ func (g *GinExtractor) convertAPISchemaToFieldInfo(schema *APISchema) *models.Fi
 func (g *GinExtractor) ExtractResponse(handlerDecl *ast.FuncDecl, typeInfo *types.Info, resolver TypeResolver) models.ResponseInfo {
 	fmt.Printf("[DEBUG] 🌟 ExtractResponse被调用: handler=%s 🌟\n", handlerDecl.Name.Name)
 	response := models.ResponseInfo{}
-	
+
 	// 查找Handler所在的包
 	pkg := g.findPackageForHandlerDecl(handlerDecl)
 	if pkg == nil {

@@ -46,6 +46,7 @@ func DetectFramework(project *parser.Project) (string, error) {
 
 // NewGinExtractor 创建Gin框架提取器
 func NewGinExtractor(project *parser.Project) Extractor {
+	fmt.Printf("[DEBUG] 🔥 NewGinExtractor 被调用，创建GinExtractor实例 🔥\n")
 	return &GinExtractor{
 		project: project,
 	}

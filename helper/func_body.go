@@ -1670,7 +1670,6 @@ func NewGinHandlerAnalyzer(dir string) (*GinHandlerAnalyzer, error) {
 			packages.NeedFiles |
 			packages.NeedSyntax |
 			packages.NeedTypes |
-			packages.NeedTypesSizes |
 			packages.NeedTypesInfo |
 			packages.NeedDeps,
 		Tests: false,

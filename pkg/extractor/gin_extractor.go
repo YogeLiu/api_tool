@@ -180,15 +180,3 @@ func (g *GinExtractor) IsHTTPMethodCall(callExpr *ast.CallExpr, typeInfo *types.
 	}
 	return false, "", ""
 }
-
-// ExtractRequest 使用 TypeResolver 回调来提取 Handler 函数中的请求信息
-func (g *GinExtractor) ExtractRequest(handlerDecl *ast.FuncDecl, typeInfo *types.Info, resolver TypeResolver) models.RequestInfo {
-	// 由于我们不解析函数体，这里返回空结果
-	return models.RequestInfo{}
-}
-
-// ExtractResponse 使用 TypeResolver 回调来提取 Handler 函数中的响应信息
-func (g *GinExtractor) ExtractResponse(handlerDecl *ast.FuncDecl, typeInfo *types.Info, resolver TypeResolver) models.ResponseInfo {
-	// 由于我们不解析函数体，这里返回空结果
-	return models.ResponseInfo{}
-}

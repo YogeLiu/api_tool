@@ -37,12 +37,6 @@ type Extractor interface {
 	// 返回值: isHTTP 表示是否为HTTP方法调用，httpMethod 表示HTTP方法名，pathSegment 表示路径段
 	IsHTTPMethodCall(callExpr *ast.CallExpr, typeInfo *types.Info) (isHTTP bool, httpMethod, pathSegment string)
 
-	// ExtractRequest 使用 TypeResolver 回调来提取 Handler 函数中的请求信息。
-	ExtractRequest(handlerDecl *ast.FuncDecl, typeInfo *types.Info, resolver TypeResolver) models.RequestInfo
-
-	// ExtractResponse 使用 TypeResolver 回调来提取 Handler 函数中的响应信息。
-	ExtractResponse(handlerDecl *ast.FuncDecl, typeInfo *types.Info, resolver TypeResolver) models.ResponseInfo
-
 	// GetFrameworkName 返回当前提取器支持的框架名称
 	GetFrameworkName() string
 }

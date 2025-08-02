@@ -4,7 +4,6 @@ package analyzer
 import (
 	"fmt"
 	"go/ast"
-	"os"
 	"strings"
 
 	"go/types"
@@ -106,19 +105,6 @@ func (a *Analyzer) Analyze() (*models.APIInfo, error) {
 			routes[k] = v
 		}
 	}
-
-	// gin param 分析
-	paramResults := a.funcBodyEngine.Analyze()
-	for rk, _ := range routes {
-		param, ok := paramResults[rk]
-		if !ok {
-			fmt.Printf("[DEBUG] 路由 %s 未找到对应的参数分析结果\n", rk)
-			continue
-		}
-		fmt.Printf("[DEBUG] 路由 %s 找到对应的参数分析结果: %v\n", rk, param)
-	}
-
-	// 关联路由信息和参数分析结果
 
 	fmt.Printf("[DEBUG] 分析完成，总共找到 %d 个路由\n", len(routes))
 	return &models.APIInfo{}, nil
@@ -300,21 +286,12 @@ func (a *Analyzer) handleHTTPMethodCall(callExpr *ast.CallExpr, context *RouteCo
 		return nil
 	}
 
-	// 提取请求和响应信息
-	if handlerInfo.FuncDecl.Name.Name == "GetUserInfo" {
-		fmt.Printf("deubg")
-	}
-	request := a.extractor.ExtractRequest(handlerInfo.FuncDecl, typeInfo, a.resolveType)
-	response := a.extractor.ExtractResponse(handlerInfo.FuncDecl, typeInfo, a.resolveType)
-
 	return &models.RouteInfo{
 		PackageName: handlerInfo.PackageName,
 		PackagePath: handlerInfo.PackagePath,
 		Method:      method,
 		Path:        fullPath,
 		Handler:     handlerInfo.FuncDecl.Name.Name,
-		Request:     request,
-		Response:    response,
 	}
 }
 
@@ -572,14 +549,6 @@ func (a *Analyzer) findPackageByName(pkgName string) *packages.Package {
 	return nil
 }
 
-func (a *Analyzer) extractHandlerFunction(callExpr *ast.CallExpr, typeInfo *types.Info) *ast.FuncDecl {
-	handlerInfo := a.extractHandlerInfo(callExpr, typeInfo)
-	if handlerInfo != nil {
-		return handlerInfo.FuncDecl
-	}
-	return nil
-}
-
 func (a *Analyzer) findFunctionDeclaration(funcName string) *ast.FuncDecl {
 	var candidates []*ast.FuncDecl
 
@@ -756,138 +725,4 @@ func (a *Analyzer) findMethodByName(methodName string) *ast.FuncDecl {
 	// 如果没有找到有gin.Context的，返回第一个
 	fmt.Printf("[DEBUG] findMethodByName: 未找到有gin.Context参数的方法，返回第一个\n")
 	return candidates[0]
-}
-
-func (a *Analyzer) saveRoutesToDebugFile(routes []models.RouteInfo, filePath string) error {
-	file, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	for _, route := range routes {
-		fmt.Fprintf(file, "Method: %s, Path: %s, Handler: %s, Request: %v, Response: %v\n",
-			route.Method, route.Path, route.Handler, route.Request, route.Response)
-	}
-	return nil
-}
-
-// mergeRouteInfoWithParams 关联路由信息和参数分析结果
-func (a *Analyzer) mergeRouteInfoWithParams(routes []models.RouteInfo, paramResults map[string]*helper.HandlerAnalysisResult) []models.RouteInfo {
-	// 创建一个映射，将现有路由按Handler名称分组
-	routesByHandler := make(map[string]*models.RouteInfo)
-	for i := range routes {
-		route := &routes[i]
-		routesByHandler[route.Handler] = route
-	}
-
-	// 遍历参数分析结果，尝试匹配并合并数据
-	mergedRoutes := make([]models.RouteInfo, 0, len(routes))
-	usedResults := make(map[string]bool)
-
-	// 首先处理能匹配的路由
-	for i := range routes {
-		route := routes[i]
-
-		// 尝试通过Handler名称找到对应的参数分析结果
-		var matchedResult *helper.HandlerAnalysisResult
-		var matchedKey string
-
-		for key, result := range paramResults {
-			if result.HandlerName == route.Handler {
-				matchedResult = result
-				matchedKey = key
-				break
-			}
-		}
-
-		if matchedResult != nil {
-			// 合并参数信息到路由中
-			fmt.Printf("[DEBUG] 合并路由 %s 的参数信息\n", route.Handler)
-
-			// 转换请求参数信息
-			request := a.convertRequestParams(matchedResult.RequestParams)
-
-			// 转换响应信息
-			response := a.convertResponseInfo(matchedResult.Response)
-
-			route.Request = request
-			route.Response = response
-
-			usedResults[matchedKey] = true
-		} else {
-			fmt.Printf("[DEBUG] 路由 %s 未找到对应的参数分析结果\n", route.Handler)
-		}
-
-		mergedRoutes = append(mergedRoutes, route)
-	}
-
-	// 处理只有参数分析结果但没有路由信息的情况
-	for key := range paramResults {
-		if !usedResults[key] {
-			fmt.Printf("[DEBUG] 参数分析结果 %s 未找到对应的路由信息，跳过\n", key)
-			// 可以选择创建一个警告或日志
-		}
-	}
-
-	fmt.Printf("[DEBUG] 合并完成，共有 %d 个路由\n", len(mergedRoutes))
-	return mergedRoutes
-}
-
-// convertRequestParams 转换请求参数信息
-func (a *Analyzer) convertRequestParams(requestParams []helper.RequestParamInfo) models.RequestInfo {
-	request := models.RequestInfo{
-		Params: make([]models.FieldInfo, 0),
-		Query:  make([]models.FieldInfo, 0),
-	}
-
-	for _, param := range requestParams {
-		fieldInfo := models.FieldInfo{
-			Name:    param.ParamName,
-			Type:    param.ParamSchema.Type,
-			JsonTag: param.ParamSchema.JSONTag,
-		}
-
-		switch param.Source {
-		case "path", "param":
-			request.Params = append(request.Params, fieldInfo)
-		case "query":
-			request.Query = append(request.Query, fieldInfo)
-		case "body", "json":
-			// 对于body参数，创建一个包含所有字段的结构
-			if request.Body == nil {
-				request.Body = &models.FieldInfo{
-					Type:   "object",
-					Fields: make([]models.FieldInfo, 0),
-				}
-			}
-			request.Body.Fields = append(request.Body.Fields, fieldInfo)
-		}
-	}
-
-	return request
-}
-
-// convertResponseInfo 转换响应信息
-func (a *Analyzer) convertResponseInfo(apiSchema *helper.APISchema) models.ResponseInfo {
-	response := models.ResponseInfo{
-		Responses: make(map[string]*models.ResponseDetail),
-	}
-
-	if apiSchema != nil {
-		// 根据APISchema创建响应详情
-		responseDetail := &models.ResponseDetail{
-			StatusCode: 200, // 默认状态码
-			Schema: &models.FieldInfo{
-				Type:    apiSchema.Type,
-				JsonTag: apiSchema.JSONTag,
-			},
-			Description: apiSchema.Description,
-		}
-
-		response.Responses["200"] = responseDetail
-		response.DefaultResp = responseDetail
-	}
-
-	return response
 }

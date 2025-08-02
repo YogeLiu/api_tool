@@ -21,6 +21,10 @@ type RouteInfo struct {
 	Handler     string       `json:"handler"`      // 处理函数名称
 	Request     RequestInfo  `json:"request"`      // 请求信息
 	Response    ResponseInfo `json:"response"`     // 响应信息
+	
+	// 集成func_body解析结果
+	RequestParams []RequestParamInfo `json:"request_params,omitempty"` // 详细请求参数信息（来自func_body解析）
+	ResponseSchema *APISchema        `json:"response_schema,omitempty"` // 详细响应结构信息（来自func_body解析）
 }
 
 // RequestInfo 代表API请求的信息
@@ -142,4 +146,24 @@ type ResponseFunctionAnalysis struct {
 	SuccessFunctions    []string                     `json:"success_functions"`     // 成功响应函数列表
 	ErrorFunctions      []string                     `json:"error_functions"`       // 错误响应函数列表
 	DirectJSONFunctions []string                     `json:"direct_json_functions"` // 直接调用JSON的函数列表
+}
+
+// ============ func_body解析结果类型定义 ============
+
+// RequestParamInfo 请求参数信息（来自func_body解析）
+type RequestParamInfo struct {
+	ParamType   string     `json:"param_type"`   // "query", "body", "path"
+	ParamName   string     `json:"param_name"`   // 参数名称
+	ParamSchema *APISchema `json:"param_schema"` // 参数结构
+	IsRequired  bool       `json:"is_required"`  // 是否必需
+	Source      string     `json:"source"`       // 来源方法: "c.Query", "c.ShouldBindJSON", etc.
+}
+
+// APISchema API结构定义（来自func_body解析）
+type APISchema struct {
+	Type        string                `json:"type"`
+	Properties  map[string]*APISchema `json:"properties,omitempty"`
+	Items       *APISchema            `json:"items,omitempty"`
+	Description string                `json:"description,omitempty"`
+	JSONTag     string                `json:"json_tag,omitempty"`
 }

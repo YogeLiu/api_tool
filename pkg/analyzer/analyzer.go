@@ -19,11 +19,11 @@ import (
 
 // Analyzer 核心分析器，执行与框架无关的业务逻辑分析
 type Analyzer struct {
-	project              *parser.Project
-	extractor            extractor.Extractor
-	routeCache           map[string]bool                        // 路由去重映射
-	routerGroupFunctions map[string]*models.RouterGroupFunction // 路由分组函数索引
-	funcBodyEngine       *helper.GinHandlerAnalyzer
+	project               *parser.Project
+	extractor             extractor.Extractor
+	routeCache            map[string]bool                        // 路由去重映射
+	routerGroupFunctions  map[string]*models.RouterGroupFunction // 路由分组函数索引
+	responseParsingEngine *helper.ResponseParsingEngine
 }
 
 // RouteContext 路由解析上下文
@@ -44,16 +44,15 @@ type HandlerInfo struct {
 
 // NewAnalyzer 创建新的分析器实例
 func NewAnalyzer(dir string, proj *parser.Project, ext extractor.Extractor) *Analyzer {
-	funcBodyEngine, err := helper.NewGinHandlerAnalyzer(dir)
-	if err != nil {
-		panic(err)
-	}
+	// 使用现有的包信息创建响应解析引擎，避免重复加载包
+	responseParsingEngine := helper.NewResponseParsingEngine(proj.Packages)
+
 	return &Analyzer{
-		project:              proj,
-		extractor:            ext,
-		routeCache:           make(map[string]bool),
-		routerGroupFunctions: make(map[string]*models.RouterGroupFunction),
-		funcBodyEngine:       funcBodyEngine,
+		project:               proj,
+		extractor:             ext,
+		routeCache:            make(map[string]bool),
+		routerGroupFunctions:  make(map[string]*models.RouterGroupFunction),
+		responseParsingEngine: responseParsingEngine,
 	}
 }
 
@@ -107,7 +106,16 @@ func (a *Analyzer) Analyze() (*models.APIInfo, error) {
 	}
 
 	fmt.Printf("[DEBUG] 分析完成，总共找到 %d 个路由\n", len(routes))
-	return &models.APIInfo{}, nil
+
+	// 将 map 转换为 slice
+	var routeList []models.RouteInfo
+	for _, route := range routes {
+		routeList = append(routeList, route)
+	}
+
+	return &models.APIInfo{
+		Routes: routeList,
+	}, nil
 }
 
 // analyzeRouterRecursively 递归解析路由器对象的使用
@@ -286,13 +294,30 @@ func (a *Analyzer) handleHTTPMethodCall(callExpr *ast.CallExpr, context *RouteCo
 		return nil
 	}
 
-	return &models.RouteInfo{
+	// 创建基础路由信息
+	routeInfo := &models.RouteInfo{
 		PackageName: handlerInfo.PackageName,
 		PackagePath: handlerInfo.PackagePath,
 		Method:      method,
 		Path:        fullPath,
 		Handler:     handlerInfo.FuncDecl.Name.Name,
 	}
+
+	// 使用 responseParsingEngine 分析 Handler 的请求和响应参数
+	if a.responseParsingEngine != nil {
+		handlerKey := handlerInfo.PackagePath + "." + handlerInfo.FuncDecl.Name.Name
+		fmt.Printf("[DEBUG] 尝试分析Handler参数: %s\n", handlerKey)
+
+		// 分析Handler的请求和响应参数
+		if handlerAnalysisResult := a.analyzeHandlerWithResponseEngine(handlerInfo); handlerAnalysisResult != nil {
+			// 将分析结果集成到路由信息中
+			routeInfo.RequestParams = a.convertToModelRequestParams(handlerAnalysisResult.RequestParams)
+			routeInfo.ResponseSchema = a.convertToModelAPISchema(handlerAnalysisResult.Response)
+			fmt.Printf("[DEBUG] 成功集成Handler参数分析结果: 请求参数%d个\n", len(handlerAnalysisResult.RequestParams))
+		}
+	}
+
+	return routeInfo
 }
 
 // 辅助方法
@@ -495,7 +520,24 @@ func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.In
 				}
 			}
 
-			// 如果无法从类型信息获取，尝试通过包名查找
+			// 如果无法从类型信息获取，尝试通过包别名解析实际包路径
+			actualPackagePath := a.resolvePackagePath(packageName, a.findPackageContainingFunction(functionName))
+			if actualPackagePath != "" {
+				targetPkg := a.findPackageByPath(actualPackagePath)
+				if targetPkg != nil {
+					funcDecl := a.findFunctionInPackage(packageName, functionName)
+					if funcDecl != nil {
+						return &HandlerInfo{
+							FuncDecl:    funcDecl,
+							PackageName: targetPkg.Name,
+							PackagePath: targetPkg.PkgPath,
+							Package:     targetPkg,
+						}
+					}
+				}
+			}
+
+			// 最后尝试通过包名直接查找（兼容性）
 			targetPkg := a.findPackageByName(packageName)
 			if targetPkg != nil {
 				funcDecl := a.findFunctionInPackage(packageName, functionName)
@@ -725,4 +767,93 @@ func (a *Analyzer) findMethodByName(methodName string) *ast.FuncDecl {
 	// 如果没有找到有gin.Context的，返回第一个
 	fmt.Printf("[DEBUG] findMethodByName: 未找到有gin.Context参数的方法，返回第一个\n")
 	return candidates[0]
+}
+
+// analyzeHandlerWithFuncBody 使用funcBodyEngine分析Handler的请求和响应参数
+func (a *Analyzer) analyzeHandlerWithResponseEngine(handlerInfo *HandlerInfo) *helper.HandlerAnalysisResult {
+	if handlerInfo == nil || handlerInfo.FuncDecl == nil || handlerInfo.Package == nil {
+		return nil
+	}
+
+	fmt.Printf("[DEBUG] analyzeHandlerWithFuncBody: 分析 %s.%s\n", handlerInfo.PackagePath, handlerInfo.FuncDecl.Name.Name)
+
+	// 使用responseParsingEngine直接分析Handler
+	result := a.responseParsingEngine.AnalyzeHandlerComplete(handlerInfo.FuncDecl, handlerInfo.Package)
+
+	if result != nil {
+		fmt.Printf("[DEBUG] responseParsingEngine分析成功: 请求参数%d个, 响应类型%s\n",
+			len(result.RequestParams),
+			func() string {
+				if result.Response != nil {
+					return result.Response.Type
+				}
+				return "nil"
+			}())
+		return result
+	} else {
+		fmt.Printf("[DEBUG] responseParsingEngine分析失败\n")
+		return nil
+	}
+}
+
+// convertToModelRequestParams 转换helper.RequestParamInfo到models.RequestParamInfo
+func (a *Analyzer) convertToModelRequestParams(helperParams []helper.RequestParamInfo) []models.RequestParamInfo {
+	var modelParams []models.RequestParamInfo
+
+	for _, helperParam := range helperParams {
+		modelParam := models.RequestParamInfo{
+			ParamType:   helperParam.ParamType,
+			ParamName:   helperParam.ParamName,
+			IsRequired:  helperParam.IsRequired,
+			Source:      helperParam.Source,
+			ParamSchema: a.convertToModelAPISchema(helperParam.ParamSchema),
+		}
+		modelParams = append(modelParams, modelParam)
+	}
+
+	return modelParams
+}
+
+// convertToModelAPISchema 转换helper.APISchema到models.APISchema
+func (a *Analyzer) convertToModelAPISchema(helperSchema *helper.APISchema) *models.APISchema {
+	if helperSchema == nil {
+		return nil
+	}
+
+	modelSchema := &models.APISchema{
+		Type:        helperSchema.Type,
+		Description: helperSchema.Description,
+		JSONTag:     helperSchema.JSONTag,
+	}
+
+	// 转换Properties
+	if helperSchema.Properties != nil {
+		modelSchema.Properties = make(map[string]*models.APISchema)
+		for key, value := range helperSchema.Properties {
+			modelSchema.Properties[key] = a.convertToModelAPISchema(value)
+		}
+	}
+
+	// 转换Items
+	if helperSchema.Items != nil {
+		modelSchema.Items = a.convertToModelAPISchema(helperSchema.Items)
+	}
+
+	return modelSchema
+}
+
+// findPackageContainingFunction 查找包含指定函数的包（用于解析包别名）
+func (a *Analyzer) findPackageContainingFunction(functionName string) *packages.Package {
+	for _, pkg := range a.project.Packages {
+		for _, file := range pkg.Syntax {
+			for _, decl := range file.Decls {
+				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+					if funcDecl.Name.Name == functionName {
+						return pkg
+					}
+				}
+			}
+		}
+	}
+	return nil
 }

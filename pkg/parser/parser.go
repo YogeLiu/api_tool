@@ -21,7 +21,6 @@ func ParseProject(projectPath string) (*Project, error) {
 			packages.NeedCompiledGoFiles |
 			packages.NeedImports |
 			packages.NeedTypes |
-			packages.NeedTypesSizes |
 			packages.NeedSyntax |
 			packages.NeedTypesInfo,
 		Dir: projectPath,

@@ -1,5 +1,6 @@
 my-tool
 vendor
+api-tool
 api_tool
 *.debug
 *.log

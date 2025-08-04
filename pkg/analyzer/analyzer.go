@@ -508,88 +508,57 @@ func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.In
 			functionName := selExpr.Sel.Name
 			fmt.Printf("[DEBUG] extractHandlerInfo: 通过包选择器查找函数: %s.%s\n", packageName, functionName)
 
-			// 首先尝试通过TypesInfo获取真实的包路径
+			// 1. 优先使用类型安全的 types.PkgName.Imported() 方法
 			if obj := typeInfo.ObjectOf(ident); obj != nil {
-				if pkg := obj.Pkg(); pkg != nil {
-					realPackagePath := pkg.Path()
-					fmt.Printf("[DEBUG] extractHandlerInfo: 从TypesInfo解析别名 %s -> %s\n", packageName, realPackagePath)
+				if pkgName, ok := obj.(*types.PkgName); ok {
+					importedPkg := pkgName.Imported() // *types.Package
+					realPkgPath := importedPkg.Path()
+					fmt.Printf("[DEBUG] extractHandlerInfo: 通过types.PkgName解析别名 %s -> %s\n", packageName, realPkgPath)
 					
-					// 检查包路径是否合理（不应该指向route包，应该指向api包）
-					if a.isReasonableHandlerPackagePath(realPackagePath, packageName) {
-						// 在真实包中查找函数
-						realPkg := a.findPackageByPath(realPackagePath)
-						if realPkg != nil {
-							funcDecl := a.findFunctionDeclarationInPackage(realPkg, functionName)
-							if funcDecl != nil {
-								hasGinContext := a.hasGinContextParameter(funcDecl)
-								fmt.Printf("[DEBUG] extractHandlerInfo: 在真实包中找到函数 %s (%s) - 有gin.Context: %v\n", 
-									functionName, realPackagePath, hasGinContext)
-								
-								return &HandlerInfo{
-									FuncDecl:    funcDecl,
-									PackageName: realPkg.Name,
-									PackagePath: realPackagePath,
-									Package:     realPkg,
-								}
+					realPkg := a.findPackageByPath(realPkgPath)
+					if realPkg != nil {
+						funcDecl := a.findFunctionDeclarationInPackage(realPkg, functionName)
+						if funcDecl != nil {
+							hasGinContext := a.hasGinContextParameter(funcDecl)
+							fmt.Printf("[DEBUG] extractHandlerInfo: 在真实包中找到函数 %s (%s) - 有gin.Context: %v\n", 
+								functionName, realPkgPath, hasGinContext)
+							
+							return &HandlerInfo{
+								FuncDecl:    funcDecl,
+								PackageName: realPkg.Name,
+								PackagePath: realPkg.PkgPath,
+								Package:     realPkg,
 							}
 						}
-					} else {
-						fmt.Printf("[DEBUG] extractHandlerInfo: TypesInfo返回的包路径不合理，启用候选匹配: %s\n", realPackagePath)
 					}
 				} else {
-					fmt.Printf("[DEBUG] extractHandlerInfo: TypesInfo中找到对象但无法获取包信息: %s\n", packageName)
+					// 可能是变量或其他类型的对象，记录但继续fallback
+					fmt.Printf("[DEBUG] extractHandlerInfo: 标识符 %s 不是包名 (类型: %T)\n", packageName, obj)
 				}
 			} else {
 				fmt.Printf("[DEBUG] extractHandlerInfo: TypesInfo中无法找到别名对象: %s\n", packageName)
 			}
 			
-			// 如果TypesInfo方法失败，尝试通过函数名找到真正的包和函数
-			var candidates []*HandlerInfo
-			
-			for _, pkg := range a.project.Packages {
-				for _, file := range pkg.Syntax {
-					for _, decl := range file.Decls {
-						if funcDecl, ok := decl.(*ast.FuncDecl); ok {
-							if funcDecl.Name.Name == functionName {
-								// 检查这个包是否匹配包别名
-								if pkg.Name == packageName || a.packageMatchesAlias(pkg, packageName) {
-									fmt.Printf("[DEBUG] extractHandlerInfo: 找到候选函数 %s 在包 %s (%s)\n", 
-										functionName, pkg.Name, pkg.PkgPath)
-									candidates = append(candidates, &HandlerInfo{
-										FuncDecl:    funcDecl,
-										PackageName: pkg.Name,
-										PackagePath: pkg.PkgPath,
-										Package:     pkg,
-									})
-								}
-							}
-						}
-					}
-				}
-			}
-			
-			// 如果找到多个候选函数，使用优先级选择最佳候选
+			// 2. 使用 packages.Imports 精准fallback
+			candidates := a.findHandlerCandidatesViaImports(packageName, functionName)
 			if len(candidates) > 0 {
 				bestCandidate := a.selectBestHandlerCandidate(candidates)
 				if bestCandidate != nil {
-					fmt.Printf("[DEBUG] extractHandlerInfo: 最终选择Handler: %s (%s)\n", 
+					fmt.Printf("[DEBUG] extractHandlerInfo: 通过imports映射找到Handler: %s (%s)\n", 
 						bestCandidate.FuncDecl.Name.Name, bestCandidate.PackagePath)
 					return bestCandidate
 				}
 			}
 
-			// 如果上面的方法没找到，尝试原有的逻辑作为备用
-			if obj := typeInfo.ObjectOf(ident); obj != nil {
-				if pkg := obj.Pkg(); pkg != nil {
-					funcDecl := a.findFunctionInPackage(packageName, functionName)
-					if funcDecl != nil {
-						return &HandlerInfo{
-							FuncDecl:    funcDecl,
-							PackageName: pkg.Name(),
-							PackagePath: pkg.Path(),
-							Package:     a.findPackageByPath(pkg.Path()),
-						}
-					}
+			// 3. 最后才使用暴力扫描（保留作为最后手段）
+			fmt.Printf("[DEBUG] extractHandlerInfo: 使用暴力扫描作为最后手段: %s.%s\n", packageName, functionName)
+			legacyCandidates := a.findHandlerCandidatesViaLegacyScan(packageName, functionName)
+			if len(legacyCandidates) > 0 {
+				bestCandidate := a.selectBestHandlerCandidate(legacyCandidates)
+				if bestCandidate != nil {
+					fmt.Printf("[DEBUG] extractHandlerInfo: 通过暴力扫描找到Handler: %s (%s)\n", 
+						bestCandidate.FuncDecl.Name.Name, bestCandidate.PackagePath)
+					return bestCandidate
 				}
 			}
 		}
@@ -1042,4 +1011,100 @@ func (a *Analyzer) calculateHandlerScore(candidate *HandlerInfo) int {
 	score += pathDepth
 	
 	return score
+}
+
+// findHandlerCandidatesViaImports 通过packages.Imports精准查找Handler候选
+func (a *Analyzer) findHandlerCandidatesViaImports(aliasName, functionName string) []*HandlerInfo {
+	var candidates []*HandlerInfo
+	
+	fmt.Printf("[DEBUG] findHandlerCandidatesViaImports: 搜索别名 %s 对应的导入包\n", aliasName)
+	
+	// 遍历所有包的导入映射
+	for _, pkg := range a.project.Packages {
+		for importPath, importedPkg := range pkg.Imports {
+			// 检查导入的包是否匹配别名
+			// 1. 检查包名是否匹配别名
+			// 2. 检查导入时是否使用了别名
+			if a.importMatchesAlias(importedPkg, aliasName, importPath) {
+				fmt.Printf("[DEBUG] findHandlerCandidatesViaImports: 找到匹配的导入 %s -> %s (包名: %s)\n", 
+					aliasName, importPath, importedPkg.Name)
+				
+				// 在这个导入包中查找函数
+				funcDecl := a.findFunctionDeclarationInPackage(importedPkg, functionName)
+				if funcDecl != nil {
+					candidates = append(candidates, &HandlerInfo{
+						FuncDecl:    funcDecl,
+						PackageName: importedPkg.Name,
+						PackagePath: importedPkg.PkgPath,
+						Package:     importedPkg,
+					})
+				}
+			}
+		}
+	}
+	
+	fmt.Printf("[DEBUG] findHandlerCandidatesViaImports: 找到 %d 个候选\n", len(candidates))
+	return candidates
+}
+
+// findHandlerCandidatesViaLegacyScan 通过暴力扫描查找Handler候选（作为最后手段）
+func (a *Analyzer) findHandlerCandidatesViaLegacyScan(aliasName, functionName string) []*HandlerInfo {
+	var candidates []*HandlerInfo
+	
+	fmt.Printf("[DEBUG] findHandlerCandidatesViaLegacyScan: 暴力扫描所有包查找 %s.%s\n", aliasName, functionName)
+	
+	for _, pkg := range a.project.Packages {
+		for _, file := range pkg.Syntax {
+			for _, decl := range file.Decls {
+				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+					if funcDecl.Name.Name == functionName {
+						// 检查这个包是否匹配包别名
+						if pkg.Name == aliasName || a.packageMatchesAlias(pkg, aliasName) {
+							fmt.Printf("[DEBUG] findHandlerCandidatesViaLegacyScan: 找到候选函数 %s 在包 %s (%s)\n", 
+								functionName, pkg.Name, pkg.PkgPath)
+							candidates = append(candidates, &HandlerInfo{
+								FuncDecl:    funcDecl,
+								PackageName: pkg.Name,
+								PackagePath: pkg.PkgPath,
+								Package:     pkg,
+							})
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	fmt.Printf("[DEBUG] findHandlerCandidatesViaLegacyScan: 找到 %d 个候选\n", len(candidates))
+	return candidates
+}
+
+// importMatchesAlias 检查导入的包是否匹配给定别名
+func (a *Analyzer) importMatchesAlias(importedPkg *packages.Package, aliasName, importPath string) bool {
+	// 1. 检查包名是否直接匹配
+	if importedPkg.Name == aliasName {
+		return true
+	}
+	
+	// 2. 使用现有的包匹配逻辑
+	if a.packageMatchesAlias(importedPkg, aliasName) {
+		return true
+	}
+	
+	// 3. 检查是否通过路径部分匹配（更精确的匹配）
+	// 比如 healthGroupInsurance 可能对应 .../health_group_insurance
+	pathParts := strings.Split(importPath, "/")
+	if len(pathParts) > 0 {
+		lastPart := pathParts[len(pathParts)-1]
+		if lastPart == aliasName {
+			return true
+		}
+		
+		// 驼峰转下划线匹配
+		if a.camelToUnderscore(aliasName) == lastPart {
+			return true
+		}
+	}
+	
+	return false
 }

@@ -15,7 +15,7 @@
             "program": "${workspaceFolder}/cmd/my-tool/main.go",
             "args": [
                 "-path",
-                "/Users/yoge/dev/project/api_tool/example",
+                "/Users/yoge/dev/go/src/go_equity_package",
                 "-framework",
                 "gin"
             ]

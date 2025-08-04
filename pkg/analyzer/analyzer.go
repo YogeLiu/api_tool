@@ -505,7 +505,30 @@ func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.In
 			functionName := selExpr.Sel.Name
 			fmt.Printf("[DEBUG] extractHandlerInfo: 通过包选择器查找函数: %s.%s\n", packageName, functionName)
 
-			// 获取选择器对象的类型信息
+			// 先尝试通过函数名找到真正的包和函数
+			for _, pkg := range a.project.Packages {
+				for _, file := range pkg.Syntax {
+					for _, decl := range file.Decls {
+						if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+							if funcDecl.Name.Name == functionName {
+								// 检查这个包是否匹配包别名
+								if pkg.Name == packageName || a.packageMatchesAlias(pkg, packageName) {
+									fmt.Printf("[DEBUG] extractHandlerInfo: 找到匹配的函数 %s 在包 %s (%s)\n", 
+										functionName, pkg.Name, pkg.PkgPath)
+									return &HandlerInfo{
+										FuncDecl:    funcDecl,
+										PackageName: pkg.Name,
+										PackagePath: pkg.PkgPath,
+										Package:     pkg,
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// 如果上面的方法没找到，尝试原有的逻辑作为备用
 			if obj := typeInfo.ObjectOf(ident); obj != nil {
 				if pkg := obj.Pkg(); pkg != nil {
 					funcDecl := a.findFunctionInPackage(packageName, functionName)
@@ -516,37 +539,6 @@ func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.In
 							PackagePath: pkg.Path(),
 							Package:     a.findPackageByPath(pkg.Path()),
 						}
-					}
-				}
-			}
-
-			// 如果无法从类型信息获取，尝试通过包别名解析实际包路径
-			actualPackagePath := a.resolvePackagePath(packageName, a.findPackageContainingFunction(functionName))
-			if actualPackagePath != "" {
-				targetPkg := a.findPackageByPath(actualPackagePath)
-				if targetPkg != nil {
-					funcDecl := a.findFunctionInPackage(packageName, functionName)
-					if funcDecl != nil {
-						return &HandlerInfo{
-							FuncDecl:    funcDecl,
-							PackageName: targetPkg.Name,
-							PackagePath: targetPkg.PkgPath,
-							Package:     targetPkg,
-						}
-					}
-				}
-			}
-
-			// 最后尝试通过包名直接查找（兼容性）
-			targetPkg := a.findPackageByName(packageName)
-			if targetPkg != nil {
-				funcDecl := a.findFunctionInPackage(packageName, functionName)
-				if funcDecl != nil {
-					return &HandlerInfo{
-						FuncDecl:    funcDecl,
-						PackageName: targetPkg.Name,
-						PackagePath: targetPkg.PkgPath,
-						Package:     targetPkg,
 					}
 				}
 			}
@@ -856,4 +848,23 @@ func (a *Analyzer) findPackageContainingFunction(functionName string) *packages.
 		}
 	}
 	return nil
+}
+
+// packageMatchesAlias 检查包是否匹配给定的别名
+func (a *Analyzer) packageMatchesAlias(pkg *packages.Package, alias string) bool {
+	// 1. 检查包名是否直接匹配
+	if pkg.Name == alias {
+		return true
+	}
+	
+	// 2. 检查包路径的最后一部分是否匹配
+	pathParts := strings.Split(pkg.PkgPath, "/")
+	if len(pathParts) > 0 && pathParts[len(pathParts)-1] == alias {
+		return true
+	}
+	
+	// 3. 可以在这里添加更多的匹配逻辑，比如import别名等
+	// 但目前这些应该足够了
+	
+	return false
 }

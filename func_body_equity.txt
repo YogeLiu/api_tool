@@ -1,0 +1,4836 @@
+🔍 开始解析项目: /Users/yoge/dev/go/src/go_equity_package
+📋 Handler分析结果:
+{
+  "package_name": "utils",
+  "package_path": "code.qschou.com/health/go_equity_package/internal/common/utils",
+  "handler": "GetClientIP"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "utils",
+  "package_path": "code.qschou.com/health/go_equity_package/internal/common/utils",
+  "handler": "GetIPAddress"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "order",
+  "package_path": "code.qschou.com/health/go_equity_package/internal/services/order",
+  "handler": "NewOrderService"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "helper",
+  "package_path": "code.qschou.com/health/go_equity_package/internal/services/insure/helper",
+  "handler": "GetBankListSort13594"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "auth",
+  "package_path": "code.qschou.com/health/go_equity_package/routers/auth",
+  "handler": "GetSessionInfo"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "RenewalActivity",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "RenewalActivityResult",
+        "properties": {
+          "ActivityTime": {
+            "type": "string",
+            "json_tag": "activity_time"
+          },
+          "CashbackAmount": {
+            "type": "integer",
+            "json_tag": "cashback_amount"
+          },
+          "IsRefund": {
+            "type": "boolean",
+            "json_tag": "is_refund"
+          },
+          "IsValid": {
+            "type": "boolean",
+            "json_tag": "is_valid"
+          },
+          "OrderNo": {
+            "type": "string",
+            "json_tag": "order_no"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "GetRenewalActivityList",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "start_time",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    },
+    {
+      "param_type": "query",
+      "param_name": "end_time",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "integer"
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "ActivityInfo",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "ActivityRes",
+        "properties": {
+          "ActivityEndTime": {
+            "type": "string",
+            "json_tag": "activity_end_time"
+          },
+          "ActivityTime": {
+            "type": "string",
+            "json_tag": "activity_time"
+          },
+          "CashbackAmount": {
+            "type": "number",
+            "json_tag": "cashback_amount"
+          },
+          "CurrentContinuousDays": {
+            "type": "integer",
+            "json_tag": "current_continuous_days"
+          },
+          "IsActivityEnded": {
+            "type": "boolean",
+            "json_tag": "is_activity_ended"
+          },
+          "IsRefund": {
+            "type": "boolean",
+            "json_tag": "is_refund"
+          },
+          "IsValid": {
+            "type": "boolean",
+            "json_tag": "is_valid"
+          },
+          "Status": {
+            "type": "string",
+            "json_tag": "status"
+          },
+          "TodayAnswered": {
+            "type": "boolean",
+            "json_tag": "today_answered"
+          },
+          "TodaySurveyUuid": {
+            "type": "string",
+            "json_tag": "today_survey_uuid"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "CreateAddress",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "AddressCreateReq",
+        "properties": {
+          "ActivitySource": {
+            "type": "string",
+            "json_tag": "activity_source"
+          },
+          "City": {
+            "type": "string",
+            "json_tag": "city"
+          },
+          "DetailedAddress": {
+            "type": "string",
+            "json_tag": "detailed_address"
+          },
+          "District": {
+            "type": "string",
+            "json_tag": "district"
+          },
+          "Name": {
+            "type": "string",
+            "json_tag": "name"
+          },
+          "Phone": {
+            "type": "string",
+            "json_tag": "phone"
+          },
+          "Province": {
+            "type": "string",
+            "json_tag": "province"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "unknown"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "EntrustTermination",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "EntrustTerminationParam",
+        "properties": {
+          "ContractCode": {
+            "type": "string",
+            "json_tag": "contract_code"
+          },
+          "UserId": {
+            "type": "integer",
+            "json_tag": "user_id"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBind"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "boolean"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "HealthBank",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "user_id",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "HealthBankResponse",
+        "properties": {
+          "Banks": {
+            "type": "array",
+            "items": {
+              "type": "HealthBank",
+              "properties": {
+                "ContractCardType": {
+                  "type": "string",
+                  "json_tag": "contract_card_type"
+                },
+                "ContractRoleCode": {
+                  "type": "string",
+                  "json_tag": "contract_role_code"
+                },
+                "Phone": {
+                  "type": "string",
+                  "json_tag": "phone"
+                }
+              }
+            },
+            "json_tag": "banks"
+          },
+          "Source": {
+            "type": "string",
+            "json_tag": "source"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "BankList",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "phone",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    },
+    {
+      "param_type": "query",
+      "param_name": "member_id",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "CashierPayBankListResp",
+        "properties": {
+          "AllAgreementList": {
+            "type": "array",
+            "items": {
+              "type": "AgreementList",
+              "properties": {
+                "AgreementName": {
+                  "type": "string",
+                  "json_tag": "agreementName"
+                },
+                "AgreementUrl": {
+                  "type": "string",
+                  "json_tag": "agreementUrl"
+                },
+                "Class": {
+                  "type": "string",
+                  "json_tag": "class"
+                },
+                "SubBankCode": {
+                  "type": "string",
+                  "json_tag": "subBankCode"
+                },
+                "Type": {
+                  "type": "string",
+                  "json_tag": "type"
+                }
+              }
+            },
+            "json_tag": "all_agreement_list"
+          },
+          "BankList": {
+            "type": "array",
+            "items": {
+              "type": "PayContractBankListResetData",
+              "properties": {
+                "AgreementList": {
+                  "type": "array",
+                  "items": {
+                    "type": "AgreementList",
+                    "properties": {
+                      "AgreementName": {
+                        "type": "string",
+                        "json_tag": "agreementName"
+                      },
+                      "AgreementUrl": {
+                        "type": "string",
+                        "json_tag": "agreementUrl"
+                      },
+                      "Class": {
+                        "type": "string",
+                        "json_tag": "class"
+                      },
+                      "SubBankCode": {
+                        "type": "string",
+                        "json_tag": "subBankCode"
+                      },
+                      "Type": {
+                        "type": "string",
+                        "json_tag": "type"
+                      }
+                    }
+                  },
+                  "json_tag": "agreementList"
+                },
+                "AliActiveStatus": {
+                  "type": "string",
+                  "json_tag": "aliActiveStatus"
+                },
+                "CardType": {
+                  "type": "array",
+                  "items": {
+                    "type": "PayCardType",
+                    "properties": {
+                      "CardCode": {
+                        "type": "string",
+                        "json_tag": "cardCode"
+                      },
+                      "CardName": {
+                        "type": "string",
+                        "json_tag": "cardName"
+                      }
+                    }
+                  },
+                  "json_tag": "cardType"
+                },
+                "ContractRoleCode": {
+                  "type": "string",
+                  "json_tag": "contractRoleCode"
+                },
+                "ContractRoleFullName": {
+                  "type": "string",
+                  "json_tag": "contractRoleFullName"
+                },
+                "ContractRoleLogoUrl": {
+                  "type": "string",
+                  "json_tag": "contractRoleLogoUrl"
+                },
+                "ContractRoleName": {
+                  "type": "string",
+                  "json_tag": "contractRoleName"
+                },
+                "IsHabitBank": {
+                  "type": "boolean",
+                  "json_tag": "isHabitBank"
+                },
+                "PayPlatform": {
+                  "type": "string",
+                  "json_tag": "payPlatform"
+                }
+              }
+            },
+            "json_tag": "bank_list"
+          },
+          "BankSortShunt": {
+            "type": "string",
+            "json_tag": "bank_sort_shunt"
+          },
+          "IsHabit": {
+            "type": "boolean",
+            "json_tag": "is_habit"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "GetUserId"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "GetPhone"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "GetRequestID"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "CrmAchieve",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "QueryForCrmRequest",
+        "properties": {
+          "Phone": {
+            "type": "string",
+            "json_tag": "phone"
+          },
+          "UserId": {
+            "type": "integer",
+            "json_tag": "user_id"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "PushCrmData",
+          "properties": {
+            "ContractCode": {
+              "type": "string",
+              "json_tag": "contract_code"
+            },
+            "ContractState": {
+              "type": "integer",
+              "json_tag": "contract_state"
+            },
+            "ExpireAt": {
+              "type": "string",
+              "json_tag": "expire_at"
+            },
+            "MemberId": {
+              "type": "integer",
+              "json_tag": "member_id"
+            },
+            "MemberRelation": {
+              "type": "integer",
+              "json_tag": "member_relation"
+            },
+            "MemberState": {
+              "type": "integer",
+              "json_tag": "member_state"
+            },
+            "MemberType": {
+              "type": "integer",
+              "json_tag": "member_type"
+            },
+            "NextPayAt": {
+              "type": "string",
+              "json_tag": "next_pay_at"
+            },
+            "OrderList": {
+              "type": "array",
+              "items": {
+                "type": "PushCrmOrderData",
+                "properties": {
+                  "CreatedAt": {
+                    "type": "string",
+                    "json_tag": "created_at"
+                  },
+                  "ExpressName": {
+                    "type": "string",
+                    "json_tag": "express_name"
+                  },
+                  "ExpressNo": {
+                    "type": "string",
+                    "json_tag": "express_no"
+                  },
+                  "ExpressState": {
+                    "type": "integer",
+                    "json_tag": "express_state"
+                  },
+                  "OrderNo": {
+                    "type": "string",
+                    "json_tag": "order_no"
+                  },
+                  "OrderState": {
+                    "type": "integer",
+                    "json_tag": "order_state"
+                  },
+                  "PayAt": {
+                    "type": "string",
+                    "json_tag": "pay_at"
+                  },
+                  "PayChannel": {
+                    "type": "string",
+                    "json_tag": "pay_channel"
+                  },
+                  "PayFee": {
+                    "type": "integer",
+                    "json_tag": "pay_fee"
+                  },
+                  "Period": {
+                    "type": "integer",
+                    "json_tag": "period"
+                  },
+                  "ProductSkuName": {
+                    "type": "string",
+                    "json_tag": "product_sku_name"
+                  },
+                  "ReceiverAddress": {
+                    "type": "string",
+                    "json_tag": "receiver_address"
+                  },
+                  "ReceiverArea": {
+                    "type": "string",
+                    "json_tag": "receiver_area"
+                  },
+                  "ReceiverCity": {
+                    "type": "string",
+                    "json_tag": "receiver_city"
+                  },
+                  "ReceiverName": {
+                    "type": "string",
+                    "json_tag": "receiver_name"
+                  },
+                  "ReceiverPhone": {
+                    "type": "string",
+                    "json_tag": "receiver_phone"
+                  },
+                  "ReceiverProvince": {
+                    "type": "string",
+                    "json_tag": "receiver_province"
+                  },
+                  "RefundAt": {
+                    "type": "string",
+                    "json_tag": "refund_at"
+                  },
+                  "RefundFee": {
+                    "type": "integer",
+                    "json_tag": "refund_fee"
+                  },
+                  "RefundState": {
+                    "type": "integer",
+                    "json_tag": "refund_state"
+                  }
+                }
+              },
+              "json_tag": "order_list"
+            },
+            "PayTotal": {
+              "type": "integer",
+              "json_tag": "pay_total"
+            },
+            "Period": {
+              "type": "integer",
+              "json_tag": "period"
+            },
+            "RefundTotal": {
+              "type": "integer",
+              "json_tag": "refund_total"
+            },
+            "RescindAt": {
+              "type": "string",
+              "json_tag": "rescind_at"
+            },
+            "UserId": {
+              "type": "integer",
+              "json_tag": "user_id"
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "CheckEntrust",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "CheckEntrustResponse",
+        "properties": {
+          "HasValidEntrust": {
+            "type": "boolean",
+            "json_tag": "has_valid_entrust"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "CheckClaimEquity",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "ClaimEquityRequest",
+        "properties": {
+          "UserId": {
+            "type": "integer",
+            "json_tag": "user_id"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "ClaimEquityResponse",
+        "properties": {
+          "GoodsInfo": {
+            "type": "array",
+            "items": {
+              "type": "GoodsInfo",
+              "properties": {
+                "EquityType": {
+                  "type": "integer",
+                  "json_tag": "equity_type"
+                },
+                "GoodsId": {
+                  "type": "integer",
+                  "json_tag": "goods_id"
+                }
+              }
+            },
+            "json_tag": "goods_info"
+          },
+          "IsClaimed": {
+            "type": "boolean",
+            "json_tag": "is_claimed"
+          },
+          "IsInvalid": {
+            "type": "boolean",
+            "json_tag": "is_invalid"
+          },
+          "IsNotReach": {
+            "type": "boolean",
+            "json_tag": "is_not_reach"
+          },
+          "IsUsed": {
+            "type": "boolean",
+            "json_tag": "is_used"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "CreateClaimEquityRecord",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "CreateClaimEquityRecordRequest",
+        "properties": {
+          "GoodsId": {
+            "type": "integer",
+            "json_tag": "goods_id"
+          },
+          "UserId": {
+            "type": "integer",
+            "json_tag": "user_id"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "unknown"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "MemberInfo",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "type",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "MemberInfo",
+        "properties": {
+          "Amount": {
+            "type": "integer",
+            "json_tag": "amount"
+          },
+          "AwaitAt": {
+            "type": "integer",
+            "json_tag": "await_at"
+          },
+          "Code": {
+            "type": "string",
+            "json_tag": "code"
+          },
+          "Equitys": {
+            "type": "array",
+            "items": {
+              "type": "MemberEquityInfo",
+              "properties": {
+                "EquityDescription": {
+                  "type": "string",
+                  "json_tag": "equity_description"
+                },
+                "EquityIcon": {
+                  "type": "string",
+                  "json_tag": "equity_icon"
+                },
+                "EquityId": {
+                  "type": "integer",
+                  "json_tag": "equity_id"
+                },
+                "EquityTitle": {
+                  "type": "string",
+                  "json_tag": "equity_title"
+                },
+                "EquityType": {
+                  "type": "integer",
+                  "json_tag": "equity_type"
+                },
+                "JumpUrl": {
+                  "type": "string",
+                  "json_tag": "jump_url"
+                },
+                "MemberId": {
+                  "type": "integer",
+                  "json_tag": "member_id"
+                },
+                "Period": {
+                  "type": "integer",
+                  "json_tag": "period"
+                },
+                "State": {
+                  "type": "integer",
+                  "json_tag": "state"
+                }
+              }
+            },
+            "json_tag": "equitys"
+          },
+          "ExpireAt": {
+            "type": "string",
+            "json_tag": "expire_at"
+          },
+          "GraceAt": {
+            "type": "integer",
+            "json_tag": "grace_at"
+          },
+          "MemberId": {
+            "type": "integer",
+            "json_tag": "member_id"
+          },
+          "MemberVersion": {
+            "type": "integer",
+            "json_tag": "member_version"
+          },
+          "Name": {
+            "type": "string",
+            "json_tag": "name"
+          },
+          "State": {
+            "type": "integer",
+            "json_tag": "state"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "MemberList",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "MemberListDTO",
+          "properties": {
+            "ExpireAt": {
+              "type": "string",
+              "json_tag": "expire_at"
+            },
+            "GraceAt": {
+              "type": "integer",
+              "json_tag": "grace_at"
+            },
+            "MemberId": {
+              "type": "integer",
+              "json_tag": "member_id"
+            },
+            "MemberType": {
+              "type": "integer",
+              "json_tag": "member_type"
+            },
+            "State": {
+              "type": "integer",
+              "json_tag": "state"
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "QueryMemberIdcard",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "member_card_id",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    },
+    {
+      "param_type": "query",
+      "param_name": "source",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "MemberIdcardInfoEncrypt",
+          "properties": {
+            "Birthday": {
+              "type": "string",
+              "json_tag": "birthday"
+            },
+            "Id": {
+              "type": "integer",
+              "json_tag": "id"
+            },
+            "Idcard": {
+              "type": "string",
+              "json_tag": "id_card"
+            },
+            "Name": {
+              "type": "string",
+              "json_tag": "name"
+            },
+            "Phone": {
+              "type": "string",
+              "json_tag": "phone"
+            },
+            "UniqueKey": {
+              "type": "string",
+              "json_tag": "unique_key"
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "MemberIdCardVerify",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "MemberIdcardVerify",
+        "properties": {
+          "Id": {
+            "type": "integer",
+            "json_tag": "id"
+          },
+          "Idcard": {
+            "type": "string",
+            "json_tag": "id_card"
+          },
+          "Ip": {
+            "type": "string",
+            "json_tag": "ip"
+          },
+          "Name": {
+            "type": "string",
+            "json_tag": "name"
+          },
+          "Phone": {
+            "type": "string",
+            "json_tag": "phone"
+          },
+          "UserId": {
+            "type": "integer",
+            "json_tag": "user_id"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "MemberIdcardVerify",
+        "properties": {
+          "Id": {
+            "type": "integer",
+            "json_tag": "id"
+          },
+          "Idcard": {
+            "type": "string",
+            "json_tag": "id_card"
+          },
+          "Ip": {
+            "type": "string",
+            "json_tag": "ip"
+          },
+          "Name": {
+            "type": "string",
+            "json_tag": "name"
+          },
+          "Phone": {
+            "type": "string",
+            "json_tag": "phone"
+          },
+          "UserId": {
+            "type": "integer",
+            "json_tag": "user_id"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "PeInsureMemberSave",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "PreInsureMemberSaveRequest",
+        "properties": {
+          "IdCard": {
+            "type": "string",
+            "json_tag": "id_card"
+          },
+          "Name": {
+            "type": "string",
+            "json_tag": "name"
+          },
+          "UniqueKey": {
+            "type": "string",
+            "json_tag": "unique_key"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "PreInsureMemberSaveData",
+        "properties": {
+          "IdCard": {
+            "type": "string",
+            "json_tag": "id_card"
+          },
+          "Name": {
+            "type": "string",
+            "json_tag": "name"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "DispatchMemberEquity",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "orderNo",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "integer"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "SendCaptcha",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "SendCaptchaParam",
+        "properties": {
+          "Phone": {
+            "type": "string",
+            "json_tag": "phone"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "SendCaptchaResponse",
+        "properties": {
+          "SendResponse": {
+            "type": "boolean",
+            "json_tag": "send_response"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "CaptchaCheck",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "CaptchaCheckParam",
+        "properties": {
+          "Phone": {
+            "type": "string",
+            "json_tag": "phone"
+          },
+          "SmsCode": {
+            "type": "string",
+            "json_tag": "sms_code"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "CaptchaCheckResponse",
+        "properties": {
+          "CheckResponse": {
+            "type": "boolean",
+            "json_tag": "check_response"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "UpdateGroupInsure",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "UpdateGroupInsureRequest",
+        "properties": {
+          "IdCard": {
+            "type": "string",
+            "json_tag": "id_card"
+          },
+          "MemberId": {
+            "type": "integer",
+            "json_tag": "member_id"
+          },
+          "Name": {
+            "type": "string",
+            "json_tag": "name"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "unknown"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "WolfBerryMemberInfo",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "type",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "WolfBerryMemberReply",
+        "properties": {
+          "Amount": {
+            "type": "integer",
+            "json_tag": "amount"
+          },
+          "Exist": {
+            "type": "boolean",
+            "json_tag": "exist"
+          },
+          "Members": {
+            "type": "array",
+            "items": {
+              "type": "WolfBerryMemberInfo",
+              "properties": {
+                "AddressId": {
+                  "type": "integer",
+                  "json_tag": "address_id"
+                },
+                "MemberInfo": {
+                  "type": "MemberInfo",
+                  "properties": {
+                    "Amount": {
+                      "type": "integer",
+                      "json_tag": "amount"
+                    },
+                    "AwaitAt": {
+                      "type": "integer",
+                      "json_tag": "await_at"
+                    },
+                    "Code": {
+                      "type": "string",
+                      "json_tag": "code"
+                    },
+                    "Equitys": {
+                      "type": "array",
+                      "items": {
+                        "type": "MemberEquityInfo",
+                        "properties": {
+                          "EquityDescription": {
+                            "type": "string",
+                            "json_tag": "equity_description"
+                          },
+                          "EquityIcon": {
+                            "type": "string",
+                            "json_tag": "equity_icon"
+                          },
+                          "EquityId": {
+                            "type": "integer",
+                            "json_tag": "equity_id"
+                          },
+                          "EquityTitle": {
+                            "type": "string",
+                            "json_tag": "equity_title"
+                          },
+                          "EquityType": {
+                            "type": "integer",
+                            "json_tag": "equity_type"
+                          },
+                          "JumpUrl": {
+                            "type": "string",
+                            "json_tag": "jump_url"
+                          },
+                          "MemberId": {
+                            "type": "integer",
+                            "json_tag": "member_id"
+                          },
+                          "Period": {
+                            "type": "integer",
+                            "json_tag": "period"
+                          },
+                          "State": {
+                            "type": "integer",
+                            "json_tag": "state"
+                          }
+                        }
+                      },
+                      "json_tag": "equitys"
+                    },
+                    "ExpireAt": {
+                      "type": "string",
+                      "json_tag": "expire_at"
+                    },
+                    "GraceAt": {
+                      "type": "integer",
+                      "json_tag": "grace_at"
+                    },
+                    "MemberId": {
+                      "type": "integer",
+                      "json_tag": "member_id"
+                    },
+                    "MemberVersion": {
+                      "type": "integer",
+                      "json_tag": "member_version"
+                    },
+                    "Name": {
+                      "type": "string",
+                      "json_tag": "name"
+                    },
+                    "State": {
+                      "type": "integer",
+                      "json_tag": "state"
+                    }
+                  },
+                  "json_tag": "MemberInfo"
+                },
+                "ProductType": {
+                  "type": "integer",
+                  "json_tag": "product_type"
+                },
+                "Relation": {
+                  "type": "integer",
+                  "json_tag": "relation"
+                }
+              }
+            },
+            "json_tag": "members"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "MemberRate",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "MemberRateRequest",
+        "properties": {
+          "MemberType": {
+            "type": "integer",
+            "json_tag": "member_type"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "RateMap",
+        "properties": {
+          "HasSocial": {
+            "type": "PayTypeMap",
+            "properties": {
+              "FirstMonthPrice": {
+                "type": "array",
+                "items": {
+                  "type": "RateItem",
+                  "properties": {
+                    "AgeRangeEnd": {
+                      "type": "string",
+                      "json_tag": "age_range_end"
+                    },
+                    "AgeRangeStart": {
+                      "type": "string",
+                      "json_tag": "age_range_start"
+                    },
+                    "AgeRangeTitle": {
+                      "type": "string",
+                      "json_tag": "age_range_title"
+                    },
+                    "Amount": {
+                      "type": "integer",
+                      "json_tag": "amount"
+                    },
+                    "ManAmount": {
+                      "type": "integer",
+                      "json_tag": "man_amount"
+                    },
+                    "PriceType": {
+                      "type": "string",
+                      "json_tag": "price_type"
+                    },
+                    "VipAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_amount"
+                    },
+                    "VipManAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_man_amount"
+                    },
+                    "VipWomanAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_woman_amount"
+                    },
+                    "WomanAmount": {
+                      "type": "integer",
+                      "json_tag": "woman_amount"
+                    }
+                  }
+                },
+                "json_tag": "first_month_price"
+              },
+              "MonthPrice": {
+                "type": "array",
+                "items": {
+                  "type": "RateItem",
+                  "properties": {
+                    "AgeRangeEnd": {
+                      "type": "string",
+                      "json_tag": "age_range_end"
+                    },
+                    "AgeRangeStart": {
+                      "type": "string",
+                      "json_tag": "age_range_start"
+                    },
+                    "AgeRangeTitle": {
+                      "type": "string",
+                      "json_tag": "age_range_title"
+                    },
+                    "Amount": {
+                      "type": "integer",
+                      "json_tag": "amount"
+                    },
+                    "ManAmount": {
+                      "type": "integer",
+                      "json_tag": "man_amount"
+                    },
+                    "PriceType": {
+                      "type": "string",
+                      "json_tag": "price_type"
+                    },
+                    "VipAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_amount"
+                    },
+                    "VipManAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_man_amount"
+                    },
+                    "VipWomanAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_woman_amount"
+                    },
+                    "WomanAmount": {
+                      "type": "integer",
+                      "json_tag": "woman_amount"
+                    }
+                  }
+                },
+                "json_tag": "month_price"
+              },
+              "YearPrice": {
+                "type": "array",
+                "items": {
+                  "type": "RateItem",
+                  "properties": {
+                    "AgeRangeEnd": {
+                      "type": "string",
+                      "json_tag": "age_range_end"
+                    },
+                    "AgeRangeStart": {
+                      "type": "string",
+                      "json_tag": "age_range_start"
+                    },
+                    "AgeRangeTitle": {
+                      "type": "string",
+                      "json_tag": "age_range_title"
+                    },
+                    "Amount": {
+                      "type": "integer",
+                      "json_tag": "amount"
+                    },
+                    "ManAmount": {
+                      "type": "integer",
+                      "json_tag": "man_amount"
+                    },
+                    "PriceType": {
+                      "type": "string",
+                      "json_tag": "price_type"
+                    },
+                    "VipAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_amount"
+                    },
+                    "VipManAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_man_amount"
+                    },
+                    "VipWomanAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_woman_amount"
+                    },
+                    "WomanAmount": {
+                      "type": "integer",
+                      "json_tag": "woman_amount"
+                    }
+                  }
+                },
+                "json_tag": "year_price"
+              }
+            },
+            "json_tag": "has_social"
+          },
+          "NoSocial": {
+            "type": "PayTypeMap",
+            "properties": {
+              "FirstMonthPrice": {
+                "type": "array",
+                "items": {
+                  "type": "RateItem",
+                  "properties": {
+                    "AgeRangeEnd": {
+                      "type": "string",
+                      "json_tag": "age_range_end"
+                    },
+                    "AgeRangeStart": {
+                      "type": "string",
+                      "json_tag": "age_range_start"
+                    },
+                    "AgeRangeTitle": {
+                      "type": "string",
+                      "json_tag": "age_range_title"
+                    },
+                    "Amount": {
+                      "type": "integer",
+                      "json_tag": "amount"
+                    },
+                    "ManAmount": {
+                      "type": "integer",
+                      "json_tag": "man_amount"
+                    },
+                    "PriceType": {
+                      "type": "string",
+                      "json_tag": "price_type"
+                    },
+                    "VipAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_amount"
+                    },
+                    "VipManAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_man_amount"
+                    },
+                    "VipWomanAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_woman_amount"
+                    },
+                    "WomanAmount": {
+                      "type": "integer",
+                      "json_tag": "woman_amount"
+                    }
+                  }
+                },
+                "json_tag": "first_month_price"
+              },
+              "MonthPrice": {
+                "type": "array",
+                "items": {
+                  "type": "RateItem",
+                  "properties": {
+                    "AgeRangeEnd": {
+                      "type": "string",
+                      "json_tag": "age_range_end"
+                    },
+                    "AgeRangeStart": {
+                      "type": "string",
+                      "json_tag": "age_range_start"
+                    },
+                    "AgeRangeTitle": {
+                      "type": "string",
+                      "json_tag": "age_range_title"
+                    },
+                    "Amount": {
+                      "type": "integer",
+                      "json_tag": "amount"
+                    },
+                    "ManAmount": {
+                      "type": "integer",
+                      "json_tag": "man_amount"
+                    },
+                    "PriceType": {
+                      "type": "string",
+                      "json_tag": "price_type"
+                    },
+                    "VipAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_amount"
+                    },
+                    "VipManAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_man_amount"
+                    },
+                    "VipWomanAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_woman_amount"
+                    },
+                    "WomanAmount": {
+                      "type": "integer",
+                      "json_tag": "woman_amount"
+                    }
+                  }
+                },
+                "json_tag": "month_price"
+              },
+              "YearPrice": {
+                "type": "array",
+                "items": {
+                  "type": "RateItem",
+                  "properties": {
+                    "AgeRangeEnd": {
+                      "type": "string",
+                      "json_tag": "age_range_end"
+                    },
+                    "AgeRangeStart": {
+                      "type": "string",
+                      "json_tag": "age_range_start"
+                    },
+                    "AgeRangeTitle": {
+                      "type": "string",
+                      "json_tag": "age_range_title"
+                    },
+                    "Amount": {
+                      "type": "integer",
+                      "json_tag": "amount"
+                    },
+                    "ManAmount": {
+                      "type": "integer",
+                      "json_tag": "man_amount"
+                    },
+                    "PriceType": {
+                      "type": "string",
+                      "json_tag": "price_type"
+                    },
+                    "VipAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_amount"
+                    },
+                    "VipManAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_man_amount"
+                    },
+                    "VipWomanAmount": {
+                      "type": "integer",
+                      "json_tag": "vip_woman_amount"
+                    },
+                    "WomanAmount": {
+                      "type": "integer",
+                      "json_tag": "woman_amount"
+                    }
+                  }
+                },
+                "json_tag": "year_price"
+              }
+            },
+            "json_tag": "no_social"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "WolfBerryMemberUserCouponList",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "status",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "CouponUserListData",
+          "properties": {
+            "BusinessCode": {
+              "type": "string",
+              "json_tag": "businessCode"
+            },
+            "CouponId": {
+              "type": "integer",
+              "json_tag": "couponId"
+            },
+            "CouponStatus": {
+              "type": "integer",
+              "json_tag": "couponStatus"
+            },
+            "CreatedAt": {
+              "type": "string",
+              "json_tag": "createdAt"
+            },
+            "DeductAmount": {
+              "type": "integer",
+              "json_tag": "deductAmount"
+            },
+            "Discount": {
+              "type": "integer",
+              "json_tag": "discount"
+            },
+            "DispatchCode": {
+              "type": "string",
+              "json_tag": "dispatchCode"
+            },
+            "DispatchDetailId": {
+              "type": "integer",
+              "json_tag": "dispatchDetailId"
+            },
+            "DispatchId": {
+              "type": "any",
+              "description": "interface{}",
+              "json_tag": "dispatchId"
+            },
+            "DispatchType": {
+              "type": "integer",
+              "json_tag": "dispatchType"
+            },
+            "MatchAmount": {
+              "type": "integer",
+              "json_tag": "matchAmount"
+            },
+            "MaxDiscountAmount": {
+              "type": "integer",
+              "json_tag": "maxDiscountAmount"
+            },
+            "MutexStatus": {
+              "type": "integer",
+              "json_tag": "mutexStatus"
+            },
+            "MutexType": {
+              "type": "integer",
+              "json_tag": "mutexType"
+            },
+            "ProdCode": {
+              "type": "string",
+              "json_tag": "prodCode"
+            },
+            "ReadStatus": {
+              "type": "integer",
+              "json_tag": "readStatus"
+            },
+            "Remark": {
+              "type": "string",
+              "json_tag": "remark"
+            },
+            "RuleId": {
+              "type": "integer",
+              "json_tag": "ruleId"
+            },
+            "TemplateLimitType": {
+              "type": "integer",
+              "json_tag": "templateLimitType"
+            },
+            "TemplateName": {
+              "type": "string",
+              "json_tag": "templateName"
+            },
+            "TemplateTitle": {
+              "type": "string",
+              "json_tag": "templateTitle"
+            },
+            "TemplateType": {
+              "type": "integer",
+              "json_tag": "templateType"
+            },
+            "UsableEndAt": {
+              "type": "string",
+              "json_tag": "usableEndAt"
+            },
+            "UsableStartAt": {
+              "type": "string",
+              "json_tag": "usableStartAt"
+            },
+            "UseAt": {
+              "type": "any",
+              "description": "interface{}",
+              "json_tag": "useAt"
+            },
+            "UserId": {
+              "type": "integer",
+              "json_tag": "userId"
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "ModifyWolfBerryMemberProduct",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "ModifyWolfBerryMemberProductReq",
+        "properties": {
+          "MemberId": {
+            "type": "integer",
+            "json_tag": "member_id"
+          },
+          "ProductType": {
+            "type": "integer",
+            "json_tag": "product_type"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "unknown"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "RCRMemberInfo",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "WolfBerryMemberReply",
+        "properties": {
+          "Amount": {
+            "type": "integer",
+            "json_tag": "amount"
+          },
+          "Exist": {
+            "type": "boolean",
+            "json_tag": "exist"
+          },
+          "Members": {
+            "type": "array",
+            "items": {
+              "type": "WolfBerryMemberInfo",
+              "properties": {
+                "AddressId": {
+                  "type": "integer",
+                  "json_tag": "address_id"
+                },
+                "MemberInfo": {
+                  "type": "MemberInfo",
+                  "properties": {
+                    "Amount": {
+                      "type": "integer",
+                      "json_tag": "amount"
+                    },
+                    "AwaitAt": {
+                      "type": "integer",
+                      "json_tag": "await_at"
+                    },
+                    "Code": {
+                      "type": "string",
+                      "json_tag": "code"
+                    },
+                    "Equitys": {
+                      "type": "array",
+                      "items": {
+                        "type": "MemberEquityInfo",
+                        "properties": {
+                          "EquityDescription": {
+                            "type": "string",
+                            "json_tag": "equity_description"
+                          },
+                          "EquityIcon": {
+                            "type": "string",
+                            "json_tag": "equity_icon"
+                          },
+                          "EquityId": {
+                            "type": "integer",
+                            "json_tag": "equity_id"
+                          },
+                          "EquityTitle": {
+                            "type": "string",
+                            "json_tag": "equity_title"
+                          },
+                          "EquityType": {
+                            "type": "integer",
+                            "json_tag": "equity_type"
+                          },
+                          "JumpUrl": {
+                            "type": "string",
+                            "json_tag": "jump_url"
+                          },
+                          "MemberId": {
+                            "type": "integer",
+                            "json_tag": "member_id"
+                          },
+                          "Period": {
+                            "type": "integer",
+                            "json_tag": "period"
+                          },
+                          "State": {
+                            "type": "integer",
+                            "json_tag": "state"
+                          }
+                        }
+                      },
+                      "json_tag": "equitys"
+                    },
+                    "ExpireAt": {
+                      "type": "string",
+                      "json_tag": "expire_at"
+                    },
+                    "GraceAt": {
+                      "type": "integer",
+                      "json_tag": "grace_at"
+                    },
+                    "MemberId": {
+                      "type": "integer",
+                      "json_tag": "member_id"
+                    },
+                    "MemberVersion": {
+                      "type": "integer",
+                      "json_tag": "member_version"
+                    },
+                    "Name": {
+                      "type": "string",
+                      "json_tag": "name"
+                    },
+                    "State": {
+                      "type": "integer",
+                      "json_tag": "state"
+                    }
+                  },
+                  "json_tag": "MemberInfo"
+                },
+                "ProductType": {
+                  "type": "integer",
+                  "json_tag": "product_type"
+                },
+                "Relation": {
+                  "type": "integer",
+                  "json_tag": "relation"
+                }
+              }
+            },
+            "json_tag": "members"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "RCRMemberUserCouponList",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "status",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "CouponUserListData",
+          "properties": {
+            "BusinessCode": {
+              "type": "string",
+              "json_tag": "businessCode"
+            },
+            "CouponId": {
+              "type": "integer",
+              "json_tag": "couponId"
+            },
+            "CouponStatus": {
+              "type": "integer",
+              "json_tag": "couponStatus"
+            },
+            "CreatedAt": {
+              "type": "string",
+              "json_tag": "createdAt"
+            },
+            "DeductAmount": {
+              "type": "integer",
+              "json_tag": "deductAmount"
+            },
+            "Discount": {
+              "type": "integer",
+              "json_tag": "discount"
+            },
+            "DispatchCode": {
+              "type": "string",
+              "json_tag": "dispatchCode"
+            },
+            "DispatchDetailId": {
+              "type": "integer",
+              "json_tag": "dispatchDetailId"
+            },
+            "DispatchId": {
+              "type": "any",
+              "description": "interface{}",
+              "json_tag": "dispatchId"
+            },
+            "DispatchType": {
+              "type": "integer",
+              "json_tag": "dispatchType"
+            },
+            "MatchAmount": {
+              "type": "integer",
+              "json_tag": "matchAmount"
+            },
+            "MaxDiscountAmount": {
+              "type": "integer",
+              "json_tag": "maxDiscountAmount"
+            },
+            "MutexStatus": {
+              "type": "integer",
+              "json_tag": "mutexStatus"
+            },
+            "MutexType": {
+              "type": "integer",
+              "json_tag": "mutexType"
+            },
+            "ProdCode": {
+              "type": "string",
+              "json_tag": "prodCode"
+            },
+            "ReadStatus": {
+              "type": "integer",
+              "json_tag": "readStatus"
+            },
+            "Remark": {
+              "type": "string",
+              "json_tag": "remark"
+            },
+            "RuleId": {
+              "type": "integer",
+              "json_tag": "ruleId"
+            },
+            "TemplateLimitType": {
+              "type": "integer",
+              "json_tag": "templateLimitType"
+            },
+            "TemplateName": {
+              "type": "string",
+              "json_tag": "templateName"
+            },
+            "TemplateTitle": {
+              "type": "string",
+              "json_tag": "templateTitle"
+            },
+            "TemplateType": {
+              "type": "integer",
+              "json_tag": "templateType"
+            },
+            "UsableEndAt": {
+              "type": "string",
+              "json_tag": "usableEndAt"
+            },
+            "UsableStartAt": {
+              "type": "string",
+              "json_tag": "usableStartAt"
+            },
+            "UseAt": {
+              "type": "any",
+              "description": "interface{}",
+              "json_tag": "useAt"
+            },
+            "UserId": {
+              "type": "integer",
+              "json_tag": "userId"
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "ModifyRCRMemberProduct",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "ModifyWolfBerryMemberProductReq",
+        "properties": {
+          "MemberId": {
+            "type": "integer",
+            "json_tag": "member_id"
+          },
+          "ProductType": {
+            "type": "integer",
+            "json_tag": "product_type"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "unknown"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "PayRate",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "PayRateRequest",
+        "properties": {
+          "IdCard": {
+            "type": "string",
+            "json_tag": "idcard"
+          },
+          "Name": {
+            "type": "string",
+            "json_tag": "name"
+          },
+          "SceneName": {
+            "type": "string",
+            "json_tag": "scene_name"
+          },
+          "SkuName": {
+            "type": "string",
+            "json_tag": "sku_name"
+          },
+          "Social": {
+            "type": "integer",
+            "json_tag": "social"
+          },
+          "Tying": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "json_tag": "tying"
+          },
+          "UniqueKey": {
+            "type": "string",
+            "json_tag": "unique_key"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "PayRateResponse",
+        "properties": {
+          "Coverage": {
+            "type": "integer",
+            "json_tag": "coverage"
+          },
+          "Display": {
+            "type": "integer",
+            "json_tag": "display"
+          },
+          "FirstMonthPrice": {
+            "type": "integer",
+            "json_tag": "first_month_price"
+          },
+          "FirstWeekPrice": {
+            "type": "integer",
+            "json_tag": "first_week_price"
+          },
+          "IdCard": {
+            "type": "string",
+            "json_tag": "id_card"
+          },
+          "MonthPrice": {
+            "type": "integer",
+            "json_tag": "month_price"
+          },
+          "Name": {
+            "type": "string",
+            "json_tag": "name"
+          },
+          "SkuName": {
+            "type": "string",
+            "json_tag": "sku_name"
+          },
+          "WeekPrice": {
+            "type": "integer",
+            "json_tag": "week_price"
+          },
+          "YearPrice": {
+            "type": "integer",
+            "json_tag": "year_price"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "MemberTypeList",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "MemberConfig",
+          "properties": {
+            "AwaitDay": {
+              "type": "integer",
+              "json_tag": "await_day"
+            },
+            "BeginPeriod": {
+              "type": "integer",
+              "json_tag": "begin_period"
+            },
+            "CreatedAt": {
+              "type": "string",
+              "json_tag": "created_at"
+            },
+            "Description": {
+              "type": "string",
+              "json_tag": "description"
+            },
+            "EndPeriod": {
+              "type": "integer",
+              "json_tag": "end_period"
+            },
+            "EquityType": {
+              "type": "string",
+              "json_tag": "equity_type"
+            },
+            "GraceDay": {
+              "type": "integer",
+              "json_tag": "grace_day"
+            },
+            "Id": {
+              "type": "integer",
+              "json_tag": "id"
+            },
+            "Name": {
+              "type": "string",
+              "json_tag": "name"
+            },
+            "Status": {
+              "type": "integer",
+              "json_tag": "status"
+            },
+            "Type": {
+              "type": "string",
+              "json_tag": "code"
+            },
+            "UpdatedAt": {
+              "type": "string",
+              "json_tag": "updated_at"
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "GetUnEntrustInfo",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "member_type",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "GetUnEntrustInfoResponse",
+        "properties": {
+          "CountdownTime": {
+            "type": "integer",
+            "json_tag": "countdown_time"
+          },
+          "FirstMonthPrice": {
+            "type": "integer",
+            "json_tag": "first_month_price"
+          },
+          "MemberIdcardID": {
+            "type": "integer",
+            "json_tag": "member_idcard_id"
+          },
+          "MemberName": {
+            "type": "string",
+            "json_tag": "member_name"
+          },
+          "MemberTitle": {
+            "type": "string",
+            "json_tag": "member_title"
+          },
+          "ReturnURL": {
+            "type": "string",
+            "json_tag": "return_url"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "Create",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "PaymentSlipCreateParam",
+        "properties": {
+          "AliActiveStatus": {
+            "type": "string",
+            "json_tag": "ali_active_status"
+          },
+          "BusinessOrderNo": {
+            "type": "string",
+            "json_tag": "business_order_no"
+          },
+          "CardType": {
+            "type": "string",
+            "json_tag": "card_type"
+          },
+          "ContractRoleCode": {
+            "type": "string",
+            "json_tag": "contract_role_code"
+          },
+          "EntrustAction": {
+            "type": "EntrustAction",
+            "description": "alias for integer",
+            "json_tag": "entrust_action"
+          },
+          "Insured": {
+            "type": "array",
+            "items": {
+              "type": "Insured",
+              "properties": {
+                "IdCard": {
+                  "type": "string",
+                  "json_tag": "id_card"
+                },
+                "MemberIDCardID": {
+                  "type": "integer",
+                  "json_tag": "member_card_id"
+                },
+                "Name": {
+                  "type": "string",
+                  "json_tag": "name"
+                },
+                "UniqueKey": {
+                  "type": "string",
+                  "json_tag": "unique_key"
+                }
+              }
+            },
+            "json_tag": "insured"
+          },
+          "IsHabitBank": {
+            "type": "integer",
+            "json_tag": "is_habit_bank"
+          },
+          "LandPageUrl": {
+            "type": "string",
+            "json_tag": "land_page_url"
+          },
+          "LongReturnUrl": {
+            "type": "string",
+            "json_tag": "long_return_url"
+          },
+          "MemberID": {
+            "type": "integer",
+            "json_tag": "member_id"
+          },
+          "MemberProductID": {
+            "type": "integer",
+            "json_tag": "member_product_id"
+          },
+          "MemberRelation": {
+            "type": "integer",
+            "json_tag": "member_relation"
+          },
+          "MemberType": {
+            "type": "integer",
+            "json_tag": "member_type"
+          },
+          "PayFee": {
+            "type": "integer",
+            "json_tag": "pay_fee"
+          },
+          "Phone": {
+            "type": "string",
+            "json_tag": "phone"
+          },
+          "Platform": {
+            "type": "string",
+            "json_tag": "platform"
+          },
+          "RequestID": {
+            "type": "string",
+            "json_tag": "request_id"
+          },
+          "UserID": {
+            "type": "integer",
+            "json_tag": "user_id"
+          },
+          "VerifyID": {
+            "type": "integer",
+            "json_tag": "verify_id"
+          },
+          "WolfBerryData": {
+            "type": "array",
+            "items": {
+              "type": "PaymentSlipCreateWolfBerryData",
+              "properties": {
+                "AddressId": {
+                  "type": "integer",
+                  "json_tag": "address_id"
+                },
+                "ProductType": {
+                  "type": "integer",
+                  "json_tag": "product_type"
+                },
+                "Relation": {
+                  "type": "integer",
+                  "json_tag": "relation"
+                }
+              }
+            },
+            "json_tag": "wolf_berry_data"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBind"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "PaymentSlipCreateResponse",
+        "properties": {
+          "BusinessOrderNo": {
+            "type": "string",
+            "json_tag": "business_order_no"
+          },
+          "RealPayPlatform": {
+            "type": "string",
+            "json_tag": "real_pay_platform"
+          },
+          "RedirectHtml": {
+            "type": "string",
+            "json_tag": "redirect_html"
+          },
+          "RedirectUrl": {
+            "type": "string",
+            "json_tag": "redirect_url"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "GetReturnUrl",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "GetMemberOrderDetail",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "order_no",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "MallOrderData",
+        "properties": {
+          "Logistics": {
+            "type": "Logistics",
+            "properties": {
+              "ClearReceiverPhone": {
+                "type": "string",
+                "json_tag": "clearReceiverPhone"
+              },
+              "ExpressName": {
+                "type": "string",
+                "json_tag": "expressName"
+              },
+              "ExpressNo": {
+                "type": "string",
+                "json_tag": "expressNo"
+              },
+              "ExpressTime": {
+                "type": "string",
+                "json_tag": "expressTime"
+              },
+              "ReceiverAddress": {
+                "type": "string",
+                "json_tag": "receiverAddress"
+              },
+              "ReceiverArea": {
+                "type": "string",
+                "json_tag": "receiverArea"
+              },
+              "ReceiverCity": {
+                "type": "string",
+                "json_tag": "receiverCity"
+              },
+              "ReceiverName": {
+                "type": "string",
+                "json_tag": "receiverName"
+              },
+              "ReceiverPhone": {
+                "type": "string",
+                "json_tag": "receiverPhone"
+              },
+              "ReceiverProvince": {
+                "type": "string",
+                "json_tag": "receiverProvince"
+              },
+              "ReceiverProvinceCode": {
+                "type": "integer",
+                "json_tag": "receiverProvinceCode"
+              },
+              "ReceiverTown": {
+                "type": "string",
+                "json_tag": "receiverTown"
+              }
+            },
+            "json_tag": "logistics"
+          },
+          "Order": {
+            "type": "MallOrder",
+            "properties": {
+              "ActivityDeductAmount": {
+                "type": "integer",
+                "json_tag": "activityDeductAmount"
+              },
+              "ActivityPrice": {
+                "type": "integer",
+                "json_tag": "activityPrice"
+              },
+              "AppID": {
+                "type": "string",
+                "json_tag": "appId"
+              },
+              "CouponAmount": {
+                "type": "integer",
+                "json_tag": "couponAmount"
+              },
+              "CreatedAt": {
+                "type": "string",
+                "json_tag": "createdAt"
+              },
+              "ExpressFee": {
+                "type": "integer",
+                "json_tag": "expressFee"
+              },
+              "MallCode": {
+                "type": "string",
+                "json_tag": "mallCode"
+              },
+              "MedicalAppointmentState": {
+                "type": "integer",
+                "json_tag": "medicalAppointmentState"
+              },
+              "OrderAmount": {
+                "type": "integer",
+                "json_tag": "orderAmount"
+              },
+              "OrderNo": {
+                "type": "string",
+                "json_tag": "orderNo"
+              },
+              "OrderType": {
+                "type": "string",
+                "json_tag": "orderType"
+              },
+              "PayAmount": {
+                "type": "integer",
+                "json_tag": "payAmount"
+              },
+              "PaymentNo": {
+                "type": "string",
+                "json_tag": "paymentNo"
+              },
+              "PaymentType": {
+                "type": "integer",
+                "json_tag": "paymentType"
+              },
+              "RefundAmount": {
+                "type": "integer",
+                "json_tag": "refundAmount"
+              },
+              "RefundQuantity": {
+                "type": "integer",
+                "json_tag": "refundQuantity"
+              },
+              "RemainingTimeMinute": {
+                "type": "integer",
+                "json_tag": "remainingTimeMinute"
+              },
+              "RemainingTimeSecond": {
+                "type": "integer",
+                "json_tag": "remainingTimeSecond"
+              },
+              "RxExist": {
+                "type": "integer",
+                "json_tag": "rxExist"
+              },
+              "RxID": {
+                "type": "integer",
+                "json_tag": "rxId"
+              },
+              "RxInquiryID": {
+                "type": "integer",
+                "json_tag": "rxInquiryId"
+              },
+              "RxState": {
+                "type": "integer",
+                "json_tag": "rxState"
+              },
+              "RxUrl": {
+                "type": "string",
+                "json_tag": "rxUrl"
+              },
+              "SplitMark": {
+                "type": "integer",
+                "json_tag": "splitMark"
+              },
+              "State": {
+                "type": "integer",
+                "json_tag": "state"
+              },
+              "SubtotalAmount": {
+                "type": "integer",
+                "json_tag": "subtotalAmount"
+              },
+              "SumPayable": {
+                "type": "integer",
+                "json_tag": "sumPayable"
+              }
+            },
+            "json_tag": "order"
+          },
+          "Patient": {
+            "type": "string",
+            "json_tag": "patient"
+          },
+          "ProviderOrderInfo": {
+            "type": "array",
+            "items": {
+              "type": "ProviderOrderInfo",
+              "properties": {
+                "ActivityDeductAmount": {
+                  "type": "integer",
+                  "json_tag": "activityDeductAmount"
+                },
+                "ExpressFee": {
+                  "type": "integer",
+                  "json_tag": "expressFee"
+                },
+                "MallCode": {
+                  "type": "string",
+                  "json_tag": "mallCode"
+                },
+                "OrderAmount": {
+                  "type": "integer",
+                  "json_tag": "orderAmount"
+                },
+                "Products": {
+                  "type": "array",
+                  "items": {
+                    "type": "MallProduct",
+                    "properties": {
+                      "Instructions": {
+                        "type": "string",
+                        "json_tag": "instructions"
+                      },
+                      "OrderProductID": {
+                        "type": "integer",
+                        "json_tag": "orderProductId"
+                      },
+                      "PostageType": {
+                        "type": "integer",
+                        "json_tag": "postageType"
+                      },
+                      "ProductID": {
+                        "type": "integer",
+                        "json_tag": "productId"
+                      },
+                      "ProductName": {
+                        "type": "string",
+                        "json_tag": "productName"
+                      },
+                      "ProductPrice": {
+                        "type": "integer",
+                        "json_tag": "productPrice"
+                      },
+                      "ProductType": {
+                        "type": "integer",
+                        "json_tag": "productType"
+                      },
+                      "Quantity": {
+                        "type": "integer",
+                        "json_tag": "quantity"
+                      },
+                      "RefundState": {
+                        "type": "string",
+                        "json_tag": "refundState"
+                      },
+                      "SupplierCode": {
+                        "type": "string",
+                        "json_tag": "supplierCode"
+                      },
+                      "Thumbnail": {
+                        "type": "string",
+                        "json_tag": "thumbnail"
+                      }
+                    }
+                  },
+                  "json_tag": "products"
+                },
+                "SubtotalAmount": {
+                  "type": "integer",
+                  "json_tag": "subtotalAmount"
+                },
+                "SupplierCode": {
+                  "type": "string",
+                  "json_tag": "supplierCode"
+                }
+              }
+            },
+            "json_tag": "providerOrderInfo"
+          },
+          "UserCertification": {
+            "type": "string",
+            "json_tag": "userCertification"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "GetMemberProductOrderList",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "memberId",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    },
+    {
+      "param_type": "query",
+      "param_name": "state",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "MemberProductOrder",
+          "properties": {
+            "ExpressState": {
+              "type": "integer",
+              "json_tag": "express_state"
+            },
+            "Id": {
+              "type": "integer",
+              "json_tag": "id"
+            },
+            "MemberId": {
+              "type": "integer",
+              "json_tag": "member_id"
+            },
+            "OrderNo": {
+              "type": "string",
+              "json_tag": "order_no"
+            },
+            "ProductCount": {
+              "type": "integer",
+              "json_tag": "product_count"
+            },
+            "ProductId": {
+              "type": "integer",
+              "json_tag": "product_id"
+            },
+            "ProductImage": {
+              "type": "string",
+              "json_tag": "product_image"
+            },
+            "ProductName": {
+              "type": "string",
+              "json_tag": "product_name"
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "GetPayStatus",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "business_order_no",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "PayStatus",
+        "properties": {
+          "BusinessOrderNo": {
+            "type": "string",
+            "json_tag": "business_order_no"
+          },
+          "MemberType": {
+            "type": "integer",
+            "json_tag": "member_type"
+          },
+          "ReturnURL": {
+            "type": "string",
+            "json_tag": "return_url"
+          },
+          "State": {
+            "type": "integer",
+            "json_tag": "state"
+          },
+          "StateMsg": {
+            "type": "string",
+            "json_tag": "state_msg"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "PayCallbackTest",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "MessageReceiveResponse",
+        "properties": {
+          "DequeueCount": {
+            "type": "integer",
+            "json_tag": "dequeue_count"
+          },
+          "EnqueueTime": {
+            "type": "integer",
+            "json_tag": "enqueue_time"
+          },
+          "FirstDequeueTime": {
+            "type": "integer",
+            "json_tag": "first_dequeue_time"
+          },
+          "MessageBody": {
+            "type": "string",
+            "json_tag": "message_body"
+          },
+          "MessageBodyMD5": {
+            "type": "string",
+            "json_tag": "message_body_md5"
+          },
+          "MessageId": {
+            "type": "string",
+            "json_tag": "message_id"
+          },
+          "MessageResponse": {
+            "type": "MessageResponse",
+            "properties": {
+              "BaseResponse": {
+                "type": "BaseResponse",
+                "properties": {
+                  "Code": {
+                    "type": "string",
+                    "json_tag": "code"
+                  },
+                  "HostId": {
+                    "type": "string",
+                    "json_tag": "host_id"
+                  },
+                  "RequestId": {
+                    "type": "string",
+                    "json_tag": "request_id"
+                  }
+                },
+                "json_tag": "BaseResponse"
+              },
+              "Message": {
+                "type": "string",
+                "json_tag": "message"
+              }
+            },
+            "json_tag": "MessageResponse"
+          },
+          "NextVisibleTime": {
+            "type": "integer",
+            "json_tag": "next_visible_time"
+          },
+          "Priority": {
+            "type": "integer",
+            "json_tag": "priority"
+          },
+          "ReceiptHandle": {
+            "type": "string",
+            "json_tag": "receipt_handle"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "H",
+        "properties": {
+          "\u003ckey\u003e": {
+            "type": "string"
+          },
+          "\u003cvalue\u003e": {
+            "type": "any",
+            "description": "interface{}"
+          }
+        },
+        "description": "alias for map[string]any"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "EntrustCallBackTest",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "MessageReceiveResponse",
+        "properties": {
+          "DequeueCount": {
+            "type": "integer",
+            "json_tag": "dequeue_count"
+          },
+          "EnqueueTime": {
+            "type": "integer",
+            "json_tag": "enqueue_time"
+          },
+          "FirstDequeueTime": {
+            "type": "integer",
+            "json_tag": "first_dequeue_time"
+          },
+          "MessageBody": {
+            "type": "string",
+            "json_tag": "message_body"
+          },
+          "MessageBodyMD5": {
+            "type": "string",
+            "json_tag": "message_body_md5"
+          },
+          "MessageId": {
+            "type": "string",
+            "json_tag": "message_id"
+          },
+          "MessageResponse": {
+            "type": "MessageResponse",
+            "properties": {
+              "BaseResponse": {
+                "type": "BaseResponse",
+                "properties": {
+                  "Code": {
+                    "type": "string",
+                    "json_tag": "code"
+                  },
+                  "HostId": {
+                    "type": "string",
+                    "json_tag": "host_id"
+                  },
+                  "RequestId": {
+                    "type": "string",
+                    "json_tag": "request_id"
+                  }
+                },
+                "json_tag": "BaseResponse"
+              },
+              "Message": {
+                "type": "string",
+                "json_tag": "message"
+              }
+            },
+            "json_tag": "MessageResponse"
+          },
+          "NextVisibleTime": {
+            "type": "integer",
+            "json_tag": "next_visible_time"
+          },
+          "Priority": {
+            "type": "integer",
+            "json_tag": "priority"
+          },
+          "ReceiptHandle": {
+            "type": "string",
+            "json_tag": "receipt_handle"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "H",
+        "properties": {
+          "\u003ckey\u003e": {
+            "type": "string"
+          },
+          "\u003cvalue\u003e": {
+            "type": "any",
+            "description": "interface{}"
+          }
+        },
+        "description": "alias for map[string]any"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "RefundCallbackTest",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "RefundSuccCallback",
+        "properties": {
+          "BillMoney": {
+            "type": "string",
+            "json_tag": "bill_money"
+          },
+          "NoJzbOrigin": {
+            "type": "integer",
+            "json_tag": "no_jzb_origin"
+          },
+          "OrderNo": {
+            "type": "string",
+            "json_tag": "order_no"
+          },
+          "RefundNo": {
+            "type": "string",
+            "json_tag": "refund_no"
+          },
+          "RefundRecvAccount": {
+            "type": "string",
+            "json_tag": "refund_recv_account"
+          },
+          "RefundType": {
+            "type": "string",
+            "json_tag": "refund_type"
+          },
+          "Service": {
+            "type": "string",
+            "json_tag": "service"
+          },
+          "SucceedAt": {
+            "type": "string",
+            "json_tag": "succeed_at"
+          },
+          "TradeNo": {
+            "type": "string",
+            "json_tag": "trade_no"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "H",
+        "properties": {
+          "\u003ckey\u003e": {
+            "type": "string"
+          },
+          "\u003cvalue\u003e": {
+            "type": "any",
+            "description": "interface{}"
+          }
+        },
+        "description": "alias for map[string]any"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "ProtocolList",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "ProtocolListRequest",
+        "properties": {
+          "MemberType": {
+            "type": "integer",
+            "json_tag": "member_type"
+          },
+          "SceneName": {
+            "type": "string",
+            "json_tag": "scene_name"
+          },
+          "SkuName": {
+            "type": "string",
+            "json_tag": "sku_name"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBind"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "InsuranceTermsListNPResponseData",
+        "properties": {
+          "List": {
+            "type": "array",
+            "items": {
+              "type": "TermsList",
+              "properties": {
+                "Child": {
+                  "type": "array",
+                  "items": {
+                    "type": "TermsList",
+                    "properties": {
+                      "Child": {
+                        "type": "array",
+                        "items": {
+                          "type": "TermsList",
+                          "properties": {
+                            "Child": {
+                              "type": "array",
+                              "items": {
+                                "type": "TermsList",
+                                "properties": {
+                                  "Child": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "description": "max depth reached"
+                                    },
+                                    "json_tag": "child"
+                                  },
+                                  "Code": {
+                                    "type": "string",
+                                    "json_tag": "code"
+                                  },
+                                  "ID": {
+                                    "type": "integer",
+                                    "json_tag": "id"
+                                  },
+                                  "SkuName": {
+                                    "type": "string",
+                                    "json_tag": "sku_name"
+                                  },
+                                  "SkuTermsType": {
+                                    "type": "string",
+                                    "json_tag": "sku_terms_type"
+                                  },
+                                  "SortIndex": {
+                                    "type": "integer",
+                                    "json_tag": "sort_index"
+                                  },
+                                  "SubTitle": {
+                                    "type": "string",
+                                    "json_tag": "sub_title"
+                                  },
+                                  "TermsType": {
+                                    "type": "integer",
+                                    "json_tag": "terms_type"
+                                  },
+                                  "Title": {
+                                    "type": "string",
+                                    "json_tag": "title"
+                                  },
+                                  "URL": {
+                                    "type": "string",
+                                    "json_tag": "url"
+                                  }
+                                }
+                              },
+                              "json_tag": "child"
+                            },
+                            "Code": {
+                              "type": "string",
+                              "json_tag": "code"
+                            },
+                            "ID": {
+                              "type": "integer",
+                              "json_tag": "id"
+                            },
+                            "SkuName": {
+                              "type": "string",
+                              "json_tag": "sku_name"
+                            },
+                            "SkuTermsType": {
+                              "type": "string",
+                              "json_tag": "sku_terms_type"
+                            },
+                            "SortIndex": {
+                              "type": "integer",
+                              "json_tag": "sort_index"
+                            },
+                            "SubTitle": {
+                              "type": "string",
+                              "json_tag": "sub_title"
+                            },
+                            "TermsType": {
+                              "type": "integer",
+                              "json_tag": "terms_type"
+                            },
+                            "Title": {
+                              "type": "string",
+                              "json_tag": "title"
+                            },
+                            "URL": {
+                              "type": "string",
+                              "json_tag": "url"
+                            }
+                          }
+                        },
+                        "json_tag": "child"
+                      },
+                      "Code": {
+                        "type": "string",
+                        "json_tag": "code"
+                      },
+                      "ID": {
+                        "type": "integer",
+                        "json_tag": "id"
+                      },
+                      "SkuName": {
+                        "type": "string",
+                        "json_tag": "sku_name"
+                      },
+                      "SkuTermsType": {
+                        "type": "string",
+                        "json_tag": "sku_terms_type"
+                      },
+                      "SortIndex": {
+                        "type": "integer",
+                        "json_tag": "sort_index"
+                      },
+                      "SubTitle": {
+                        "type": "string",
+                        "json_tag": "sub_title"
+                      },
+                      "TermsType": {
+                        "type": "integer",
+                        "json_tag": "terms_type"
+                      },
+                      "Title": {
+                        "type": "string",
+                        "json_tag": "title"
+                      },
+                      "URL": {
+                        "type": "string",
+                        "json_tag": "url"
+                      }
+                    }
+                  },
+                  "json_tag": "child"
+                },
+                "Code": {
+                  "type": "string",
+                  "json_tag": "code"
+                },
+                "ID": {
+                  "type": "integer",
+                  "json_tag": "id"
+                },
+                "SkuName": {
+                  "type": "string",
+                  "json_tag": "sku_name"
+                },
+                "SkuTermsType": {
+                  "type": "string",
+                  "json_tag": "sku_terms_type"
+                },
+                "SortIndex": {
+                  "type": "integer",
+                  "json_tag": "sort_index"
+                },
+                "SubTitle": {
+                  "type": "string",
+                  "json_tag": "sub_title"
+                },
+                "TermsType": {
+                  "type": "integer",
+                  "json_tag": "terms_type"
+                },
+                "Title": {
+                  "type": "string",
+                  "json_tag": "title"
+                },
+                "URL": {
+                  "type": "string",
+                  "json_tag": "url"
+                }
+              }
+            },
+            "json_tag": "terms_list"
+          },
+          "MultiRecordInfo": {
+            "type": "string",
+            "json_tag": "multi_record_info"
+          },
+          "RecordInfo": {
+            "type": "string",
+            "json_tag": "record_info"
+          },
+          "SkuName": {
+            "type": "string",
+            "json_tag": "sku_name"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "ProtocolDetail",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "ProtocolDetailRequest",
+        "properties": {
+          "Code": {
+            "type": "string",
+            "json_tag": "code"
+          },
+          "ID": {
+            "type": "integer",
+            "json_tag": "id"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBind"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "ProtocolDetailData",
+        "properties": {
+          "Code": {
+            "type": "string",
+            "json_tag": "code"
+          },
+          "Content": {
+            "type": "string",
+            "json_tag": "content"
+          },
+          "ID": {
+            "type": "integer",
+            "json_tag": "id"
+          },
+          "Title": {
+            "type": "string",
+            "json_tag": "title"
+          },
+          "URL": {
+            "type": "string",
+            "json_tag": "url"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "Refund",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "OrderRefundParam",
+        "properties": {
+          "InsuranceReceivableRefundFee": {
+            "type": "integer",
+            "json_tag": "insurance_receivable_refund_fee"
+          },
+          "OrderNo": {
+            "type": "string",
+            "json_tag": "order_no"
+          },
+          "PolicyID": {
+            "type": "integer",
+            "json_tag": "policy_id"
+          },
+          "ReceivableRefundFee": {
+            "type": "integer",
+            "json_tag": "receivable_refund_fee"
+          },
+          "RefundList": {
+            "type": "map[string]array",
+            "properties": {
+              "\u003ckey\u003e": {
+                "type": "string"
+              },
+              "\u003cvalue\u003e": {
+                "type": "array",
+                "items": {
+                  "type": "PeriodList",
+                  "properties": {
+                    "InsuranceReceivableRefundFee": {
+                      "type": "integer",
+                      "json_tag": "insurance_receivable_refund_fee"
+                    },
+                    "Period": {
+                      "type": "integer",
+                      "json_tag": "period"
+                    },
+                    "RefundFee": {
+                      "type": "integer",
+                      "json_tag": "refund_fee"
+                    }
+                  }
+                }
+              }
+            },
+            "json_tag": "refund_list"
+          },
+          "RefundType": {
+            "type": "integer",
+            "json_tag": "refund_type"
+          },
+          "SecretKey": {
+            "type": "string",
+            "json_tag": "secret_key"
+          },
+          "Source": {
+            "type": "integer",
+            "json_tag": "source"
+          },
+          "UserID": {
+            "type": "integer",
+            "json_tag": "user_id"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBind"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "OrderRefundResult",
+        "properties": {
+          "RefundAt": {
+            "type": "string",
+            "json_tag": "refund_at"
+          },
+          "RefundFee": {
+            "type": "integer",
+            "json_tag": "refund_fee"
+          },
+          "SuccessList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "json_tag": "success_list"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "GetRelation",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "member_type",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "RelationResp",
+        "properties": {
+          "Buy": {
+            "type": "integer",
+            "json_tag": "buy"
+          },
+          "EndTime": {
+            "type": "integer",
+            "json_tag": "end_time"
+          },
+          "Relations": {
+            "type": "array",
+            "items": {
+              "type": "Relation",
+              "properties": {
+                "Avatar": {
+                  "type": "string",
+                  "json_tag": "avatar"
+                },
+                "Province": {
+                  "type": "string",
+                  "json_tag": "province"
+                },
+                "UserName": {
+                  "type": "string",
+                  "json_tag": "user_name"
+                }
+              }
+            },
+            "json_tag": "relations"
+          },
+          "UserID": {
+            "type": "integer",
+            "json_tag": "user_id"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "TestWithhold",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "TestWithhold",
+        "properties": {
+          "ContractCode": {
+            "type": "string",
+            "json_tag": "contract_code"
+          },
+          "RequestId": {
+            "type": "string",
+            "json_tag": "request_id"
+          },
+          "UserId": {
+            "type": "integer",
+            "json_tag": "user_id"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBind"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "TestInsurePush",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "type",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "TestRenewInsurePush",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "TestInsureRenewRepush",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "object",
+        "properties": {
+          "PushIDs": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "json_tag": "push_ids"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBind"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "TestInsureFailPush",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "TestRenewSuccessEvent",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "object",
+        "properties": {
+          "Message": {
+            "type": "string",
+            "json_tag": "message"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBind"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "error",
+        "description": "alias for interface"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "TestHealthAnswerHistoryPush",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "object",
+        "properties": {
+          "MemberIDs": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "json_tag": "member_ids"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBind"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "TestGetWechatExit",
+  "request_params": [
+    {
+      "param_type": "query",
+      "param_name": "userId",
+      "param_schema": {
+        "type": "string",
+        "description": "Query parameter from c.Query()"
+      },
+      "is_required": false,
+      "source": "c.Query"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "map[string]any",
+        "properties": {
+          "\u003ckey\u003e": {
+            "type": "string"
+          },
+          "\u003cvalue\u003e": {
+            "type": "any",
+            "description": "interface{}"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "TestProcessUnEntrustUsers",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "TestDailyRenewEntrustReminder",
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "StartWithholdTask",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "WithholdTaskRequest",
+        "properties": {
+          "TaskIDs": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "json_tag": "task_ids"
+          },
+          "Types": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "json_tag": "types"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "H",
+    "properties": {
+      "\u003ckey\u003e": {
+        "type": "string"
+      },
+      "\u003cvalue\u003e": {
+        "type": "any",
+        "description": "interface{}"
+      }
+    },
+    "description": "alias for map[string]any"
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "api",
+  "package_path": "code.qschou.com/health/go_equity_package/api",
+  "handler": "CloseWithholdTask",
+  "request_params": [
+    {
+      "param_type": "body",
+      "param_name": "request_body",
+      "param_schema": {
+        "type": "CloseWithholdTaskRequest",
+        "properties": {
+          "MemberID": {
+            "type": "integer",
+            "json_tag": "member_id"
+          },
+          "UserID": {
+            "type": "integer",
+            "json_tag": "user_id"
+          }
+        }
+      },
+      "is_required": true,
+      "source": "c.ShouldBindJSON"
+    }
+  ],
+  "response": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "json_tag": "code"
+      },
+      "data": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string",
+        "json_tag": "message"
+      },
+      "request_id": {
+        "type": "string",
+        "json_tag": "request_id"
+      }
+    }
+  }
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "middleware",
+  "package_path": "code.qschou.com/health/go_equity_package/routers/middleware",
+  "handler": "NoCache"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "middleware",
+  "package_path": "code.qschou.com/health/go_equity_package/routers/middleware",
+  "handler": "Options"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "middleware",
+  "package_path": "code.qschou.com/health/go_equity_package/routers/middleware",
+  "handler": "Secure"
+}
+
+📋 Handler分析结果:
+{
+  "package_name": "middleware",
+  "package_path": "code.qschou.com/health/go_equity_package/routers/middleware",
+  "handler": "OrderAccess"
+}
+
+
+✅ 解析完成

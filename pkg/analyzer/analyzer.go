@@ -162,7 +162,10 @@ func (a *Analyzer) analyzeRouterRecursively(context *RouteContext) map[string]mo
 
 	ans := make(map[string]models.RouteInfo)
 	for _, route := range routes {
-		ans[route.PackagePath+"."+route.Handler] = route
+		// 使用更唯一的Key: Method + Path + PackagePath + Handler
+		// 这样即使相同Handler处理不同路径也不会冲突
+		uniqueKey := fmt.Sprintf("%s:%s:%s.%s", route.Method, route.Path, route.PackagePath, route.Handler)
+		ans[uniqueKey] = route
 	}
 
 	return ans
@@ -505,7 +508,44 @@ func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.In
 			functionName := selExpr.Sel.Name
 			fmt.Printf("[DEBUG] extractHandlerInfo: 通过包选择器查找函数: %s.%s\n", packageName, functionName)
 
-			// 先尝试通过函数名找到真正的包和函数
+			// 首先尝试通过TypesInfo获取真实的包路径
+			if obj := typeInfo.ObjectOf(ident); obj != nil {
+				if pkg := obj.Pkg(); pkg != nil {
+					realPackagePath := pkg.Path()
+					fmt.Printf("[DEBUG] extractHandlerInfo: 从TypesInfo解析别名 %s -> %s\n", packageName, realPackagePath)
+					
+					// 检查包路径是否合理（不应该指向route包，应该指向api包）
+					if a.isReasonableHandlerPackagePath(realPackagePath, packageName) {
+						// 在真实包中查找函数
+						realPkg := a.findPackageByPath(realPackagePath)
+						if realPkg != nil {
+							funcDecl := a.findFunctionDeclarationInPackage(realPkg, functionName)
+							if funcDecl != nil {
+								hasGinContext := a.hasGinContextParameter(funcDecl)
+								fmt.Printf("[DEBUG] extractHandlerInfo: 在真实包中找到函数 %s (%s) - 有gin.Context: %v\n", 
+									functionName, realPackagePath, hasGinContext)
+								
+								return &HandlerInfo{
+									FuncDecl:    funcDecl,
+									PackageName: realPkg.Name,
+									PackagePath: realPackagePath,
+									Package:     realPkg,
+								}
+							}
+						}
+					} else {
+						fmt.Printf("[DEBUG] extractHandlerInfo: TypesInfo返回的包路径不合理，启用候选匹配: %s\n", realPackagePath)
+					}
+				} else {
+					fmt.Printf("[DEBUG] extractHandlerInfo: TypesInfo中找到对象但无法获取包信息: %s\n", packageName)
+				}
+			} else {
+				fmt.Printf("[DEBUG] extractHandlerInfo: TypesInfo中无法找到别名对象: %s\n", packageName)
+			}
+			
+			// 如果TypesInfo方法失败，尝试通过函数名找到真正的包和函数
+			var candidates []*HandlerInfo
+			
 			for _, pkg := range a.project.Packages {
 				for _, file := range pkg.Syntax {
 					for _, decl := range file.Decls {
@@ -513,18 +553,28 @@ func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.In
 							if funcDecl.Name.Name == functionName {
 								// 检查这个包是否匹配包别名
 								if pkg.Name == packageName || a.packageMatchesAlias(pkg, packageName) {
-									fmt.Printf("[DEBUG] extractHandlerInfo: 找到匹配的函数 %s 在包 %s (%s)\n", 
+									fmt.Printf("[DEBUG] extractHandlerInfo: 找到候选函数 %s 在包 %s (%s)\n", 
 										functionName, pkg.Name, pkg.PkgPath)
-									return &HandlerInfo{
+									candidates = append(candidates, &HandlerInfo{
 										FuncDecl:    funcDecl,
 										PackageName: pkg.Name,
 										PackagePath: pkg.PkgPath,
 										Package:     pkg,
-									}
+									})
 								}
 							}
 						}
 					}
+				}
+			}
+			
+			// 如果找到多个候选函数，使用优先级选择最佳候选
+			if len(candidates) > 0 {
+				bestCandidate := a.selectBestHandlerCandidate(candidates)
+				if bestCandidate != nil {
+					fmt.Printf("[DEBUG] extractHandlerInfo: 最终选择Handler: %s (%s)\n", 
+						bestCandidate.FuncDecl.Name.Name, bestCandidate.PackagePath)
+					return bestCandidate
 				}
 			}
 
@@ -764,10 +814,14 @@ func (a *Analyzer) findMethodByName(methodName string) *ast.FuncDecl {
 // analyzeHandlerWithFuncBody 使用funcBodyEngine分析Handler的请求和响应参数
 func (a *Analyzer) analyzeHandlerWithResponseEngine(handlerInfo *HandlerInfo) *helper.HandlerAnalysisResult {
 	if handlerInfo == nil || handlerInfo.FuncDecl == nil || handlerInfo.Package == nil {
+		fmt.Printf("[DEBUG] analyzeHandlerWithResponseEngine: 参数检查失败 - handlerInfo: %v, FuncDecl: %v, Package: %v\n", 
+			handlerInfo != nil, handlerInfo != nil && handlerInfo.FuncDecl != nil, handlerInfo != nil && handlerInfo.Package != nil)
 		return nil
 	}
 
-	fmt.Printf("[DEBUG] analyzeHandlerWithFuncBody: 分析 %s.%s\n", handlerInfo.PackagePath, handlerInfo.FuncDecl.Name.Name)
+	fmt.Printf("[DEBUG] analyzeHandlerWithResponseEngine: 分析 %s.%s\n", handlerInfo.PackagePath, handlerInfo.FuncDecl.Name.Name)
+	fmt.Printf("[DEBUG] analyzeHandlerWithResponseEngine: Package路径: %s, Package名称: %s\n", handlerInfo.Package.PkgPath, handlerInfo.Package.Name)
+	fmt.Printf("[DEBUG] analyzeHandlerWithResponseEngine: TypesInfo为空: %v\n", handlerInfo.Package.TypesInfo == nil)
 
 	// 使用responseParsingEngine直接分析Handler
 	result := a.responseParsingEngine.AnalyzeHandlerComplete(handlerInfo.FuncDecl, handlerInfo.Package)
@@ -863,8 +917,129 @@ func (a *Analyzer) packageMatchesAlias(pkg *packages.Package, alias string) bool
 		return true
 	}
 	
-	// 3. 可以在这里添加更多的匹配逻辑，比如import别名等
-	// 但目前这些应该足够了
+	// 3. 特殊处理版本化的别名，如 v1Order, v2Order 等
+	// 这些别名通常指向 .../v1/order, .../v2/order 等路径
+	if len(pathParts) >= 2 {
+		// 检查是否为 vX + 包名 的模式
+		lastPart := pathParts[len(pathParts)-1]      // 如 "order"
+		secondLastPart := pathParts[len(pathParts)-2] // 如 "v1"
+		
+		// 构建可能的别名 如 "v1" + "order" = "v1order"
+		possibleAlias := secondLastPart + lastPart
+		if strings.EqualFold(possibleAlias, alias) { // 忽略大小写比较
+			return true
+		}
+		
+		// 也尝试首字母大写的版本 如 "v1Order"
+		if len(lastPart) > 0 {
+			capitalizedAlias := secondLastPart + strings.ToUpper(lastPart[:1]) + lastPart[1:]
+			if capitalizedAlias == alias {
+				return true
+			}
+		}
+	}
+	
+	// 4. 处理驼峰命名转下划线的情况
+	// 如 healthGroupInsurance -> health_group_insurance
+	underscoreAlias := a.camelToUnderscore(alias)
+	if len(pathParts) > 0 && pathParts[len(pathParts)-1] == underscoreAlias {
+		return true
+	}
+	
+	// 5. 处理别名中包含包名的情况
+	// 如 healthGroupInsurance 可能对应包名 health_group_insurance
+	if strings.Contains(pkg.PkgPath, underscoreAlias) {
+		return true
+	}
 	
 	return false
+}
+
+// camelToUnderscore 将驼峰命名转换为下划线命名
+func (a *Analyzer) camelToUnderscore(s string) string {
+	var result []rune
+	for i, r := range s {
+		if i > 0 && 'A' <= r && r <= 'Z' {
+			result = append(result, '_')
+		}
+		result = append(result, 'a'+(r-'A'))
+		if 'a' <= r && r <= 'z' {
+			result[len(result)-1] = r
+		}
+	}
+	return string(result)
+}
+
+// isReasonableHandlerPackagePath 检查包路径是否合理用于Handler
+func (a *Analyzer) isReasonableHandlerPackagePath(packagePath, alias string) bool {
+	// 如果指向route包，通常不是真正的Handler所在位置
+	if strings.Contains(packagePath, "/route") && !strings.Contains(packagePath, "/api/") {
+		return false
+	}
+	
+	// 如果别名暗示应该在api包中，但路径不包含api，则可能不合理
+	if strings.Contains(alias, "api") || strings.Contains(alias, "Api") {
+		if !strings.Contains(packagePath, "/api/") {
+			return false
+		}
+	}
+	
+	return true
+}
+
+// selectBestHandlerCandidate 从候选函数中选择最佳的Handler
+func (a *Analyzer) selectBestHandlerCandidate(candidates []*HandlerInfo) *HandlerInfo {
+	if len(candidates) == 0 {
+		return nil
+	}
+	
+	if len(candidates) == 1 {
+		return candidates[0]
+	}
+	
+	fmt.Printf("[DEBUG] selectBestHandlerCandidate: 评估 %d 个候选函数\n", len(candidates))
+	
+	var bestCandidate *HandlerInfo
+	bestScore := -1
+	
+	for i, candidate := range candidates {
+		score := a.calculateHandlerScore(candidate)
+		hasGinContext := a.hasGinContextParameter(candidate.FuncDecl)
+		
+		fmt.Printf("[DEBUG] selectBestHandlerCandidate: 候选 %d - %s (%s) - gin.Context: %v, 评分: %d\n", 
+			i+1, candidate.FuncDecl.Name.Name, candidate.PackagePath, hasGinContext, score)
+		
+		if score > bestScore {
+			bestScore = score
+			bestCandidate = candidate
+		}
+	}
+	
+	return bestCandidate
+}
+
+// calculateHandlerScore 计算Handler候选函数的评分
+func (a *Analyzer) calculateHandlerScore(candidate *HandlerInfo) int {
+	score := 0
+	
+	// 1. 有gin.Context参数的函数得分更高（+100）
+	if a.hasGinContextParameter(candidate.FuncDecl) {
+		score += 100
+	}
+	
+	// 2. 在API包中的函数得分更高（+50）
+	if strings.Contains(candidate.PackagePath, "/api/") {
+		score += 50
+	}
+	
+	// 3. 不在route包中的函数得分更高（+20）
+	if !strings.Contains(candidate.PackagePath, "/route") {
+		score += 20
+	}
+	
+	// 4. 包路径更深的（更具体的）函数得分更高（+路径深度）
+	pathDepth := strings.Count(candidate.PackagePath, "/")
+	score += pathDepth
+	
+	return score
 }

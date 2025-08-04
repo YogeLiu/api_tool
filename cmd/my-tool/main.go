@@ -6,15 +6,21 @@ import (
 	"flag"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/YogeLiu/api-tool/pkg/analyzer"
+	"github.com/YogeLiu/api-tool/pkg/exporter"
 	"github.com/YogeLiu/api-tool/pkg/extractor"
+	"github.com/YogeLiu/api-tool/pkg/models"
 	"github.com/YogeLiu/api-tool/pkg/parser"
 )
 
 func main() {
 	projectPath := flag.String("path", ".", "要分析的 Go 项目的根路径。")
 	framework := flag.String("framework", "gin", "目标框架 (gin 或 iris)。")
+	outputFormat := flag.String("format", "json", "输出格式 (json, yapi 或 swagger)。")
+	outputFile := flag.String("output", "", "输出文件路径 (可选)。")
+	projectName := flag.String("project", "", "项目名称 (YAPI格式时使用)。")
 	flag.Parse()
 
 	// 检查是否有位置参数，如果有则使用位置参数作为项目路径
@@ -49,12 +55,77 @@ func main() {
 		log.Fatalf("核心分析失败: %v", err)
 	}
 
-	log.Println("4. 生成 JSON 输出...")
-	output, err := json.MarshalIndent(apiInfo, "", "  ")
-	if err != nil {
-		log.Fatalf("JSON序列化失败: %v", err)
+	log.Printf("4. 生成 %s 格式输出...", *outputFormat)
+
+	switch *outputFormat {
+	case "yapi":
+		// YAPI格式导出
+		if err := exportToYAPI(apiInfo, *projectPath, *projectName, *outputFile); err != nil {
+			log.Fatalf("YAPI导出失败: %v", err)
+		}
+	case "swagger":
+		// Swagger格式导出
+		if err := exportToSwagger(apiInfo, *projectPath, *projectName, *outputFile); err != nil {
+			log.Fatalf("Swagger导出失败: %v", err)
+		}
+	default:
+		// 默认JSON格式输出
+		output, err := json.MarshalIndent(apiInfo, "", "  ")
+		if err != nil {
+			log.Fatalf("JSON序列化失败: %v", err)
+		}
+
+		if *outputFile != "" {
+			// 保存到文件
+			if err := os.WriteFile(*outputFile, output, 0644); err != nil {
+				log.Fatalf("保存文件失败: %v", err)
+			}
+			log.Printf("✅ JSON输出已保存到: %s", *outputFile)
+		} else {
+			// 输出到控制台
+			os.Stdout.Write(output)
+		}
 	}
 
-	os.Stdout.Write(output)
 	log.Println("\n分析完成。")
+}
+
+// exportToYAPI 导出为YAPI格式
+func exportToYAPI(apiInfo *models.APIInfo, projectPath, projectName, outputFile string) error {
+	// 如果没有指定项目名称，使用项目路径的最后一部分
+	if projectName == "" {
+		projectName = filepath.Base(projectPath)
+	}
+
+	// 确定输出目录
+	outputDir := "./yapi_exports"
+	if outputFile != "" {
+		outputDir = filepath.Dir(outputFile)
+	}
+
+	// 创建YAPI导出器
+	yapiExporter := exporter.NewYAPIExporter(projectName, "", outputDir)
+
+	// 执行导出
+	return yapiExporter.Export(apiInfo)
+}
+
+// exportToSwagger 导出为Swagger格式
+func exportToSwagger(apiInfo *models.APIInfo, projectPath, projectName, outputFile string) error {
+	// 如果没有指定项目名称，使用项目路径的最后一部分
+	if projectName == "" {
+		projectName = filepath.Base(projectPath)
+	}
+
+	// 确定输出目录
+	outputDir := "./swagger_exports"
+	if outputFile != "" {
+		outputDir = filepath.Dir(outputFile)
+	}
+
+	// 创建Swagger导出器
+	swaggerExporter := exporter.NewSwaggerExporter(projectName, "1.0.0", "http://localhost:8080", outputDir, true)
+
+	// 执行导出
+	return swaggerExporter.Export(apiInfo)
 }

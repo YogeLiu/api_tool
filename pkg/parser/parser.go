@@ -18,13 +18,13 @@ func ParseProject(projectPath string) (*Project, error) {
 	cfg := &packages.Config{
 		Mode: packages.NeedName |
 			packages.NeedFiles |
-			packages.NeedCompiledGoFiles |
-			packages.NeedImports |
-			packages.NeedTypes |
 			packages.NeedSyntax |
-			packages.NeedTypesInfo,
-		Dir: projectPath,
-		Env: append(os.Environ(), "GOFLAGS=-mod=vendor"),
+			packages.NeedTypes |
+			packages.NeedTypesInfo |
+			packages.NeedDeps,
+		Tests: false,
+		Dir:   projectPath,
+		Env:   append(os.Environ(), "GOFLAGS=-mod=vendor"),
 	}
 
 	// 加载项目中的所有包

@@ -4,6 +4,7 @@ package analyzer
 import (
 	"fmt"
 	"go/ast"
+	"log"
 	"strings"
 
 	"go/types"
@@ -58,10 +59,10 @@ func NewAnalyzer(dir string, proj *parser.Project, ext extractor.Extractor) *Ana
 
 // Analyze 执行主分析流程
 func (a *Analyzer) Analyze() (*models.APIInfo, error) {
-	fmt.Printf("[DEBUG] 开始两阶段路由分析\n")
+	log.Printf("[DEBUG] 开始两阶段路由分析\n")
 
 	// 预处理阶段：初始化提取器，进行预扫描
-	fmt.Printf("[DEBUG] === 预处理阶段：初始化提取器 ===\n")
+	log.Printf("[DEBUG] === 预处理阶段：初始化提取器 ===\n")
 	if err := a.extractor.InitializeAnalysis(); err != nil {
 		return nil, &models.AnalysisError{
 			Context: "初始化提取器",
@@ -70,15 +71,15 @@ func (a *Analyzer) Analyze() (*models.APIInfo, error) {
 	}
 
 	// 第一阶段：扫描并索引所有路由分组函数
-	fmt.Printf("[DEBUG] === 第一阶段：索引路由分组函数 ===\n")
+	log.Printf("[DEBUG] === 第一阶段：索引路由分组函数 ===\n")
 	a.routerGroupFunctions = a.extractor.FindRouterGroupFunctions(a.project.Packages)
-	fmt.Printf("[DEBUG] 索引完成，找到 %d 个路由分组函数:\n", len(a.routerGroupFunctions))
+	log.Printf("[DEBUG] 索引完成，找到 %d 个路由分组函数:\n", len(a.routerGroupFunctions))
 	for key := range a.routerGroupFunctions {
-		fmt.Printf("[DEBUG]   - %s\n", key)
+		log.Printf("[DEBUG]   - %s\n", key)
 	}
 
 	// 第二阶段：从根路由开始递归解析
-	fmt.Printf("[DEBUG] === 第二阶段：递归解析路由 ===\n")
+	log.Printf("[DEBUG] === 第二阶段：递归解析路由 ===\n")
 	rootRouters := a.extractor.FindRootRouters(a.project.Packages)
 	if len(rootRouters) == 0 {
 		return nil, &models.AnalysisError{
@@ -91,7 +92,7 @@ func (a *Analyzer) Analyze() (*models.APIInfo, error) {
 
 	// 为每个根路由器开始递归解析
 	for _, rootRouter := range rootRouters {
-		fmt.Printf("[DEBUG] 开始分析根路由器: %s\n", rootRouter.Name())
+		log.Printf("[DEBUG] 开始分析根路由器: %s\n", rootRouter.Name())
 		context := &RouteContext{
 			ParentPath:     "",
 			RouterObject:   rootRouter,
@@ -105,7 +106,7 @@ func (a *Analyzer) Analyze() (*models.APIInfo, error) {
 		}
 	}
 
-	fmt.Printf("[DEBUG] 分析完成，总共找到 %d 个路由\n", len(routes))
+	log.Printf("[DEBUG] 分析完成，总共找到 %d 个路由\n", len(routes))
 
 	// 将 map 转换为 slice
 	var routeList []models.RouteInfo
@@ -122,7 +123,7 @@ func (a *Analyzer) Analyze() (*models.APIInfo, error) {
 func (a *Analyzer) analyzeRouterRecursively(context *RouteContext) map[string]models.RouteInfo {
 	var routes []models.RouteInfo
 
-	fmt.Printf("[DEBUG] analyzeRouterRecursively: 分析路由器 %s，当前路径: %s\n",
+	log.Printf("[DEBUG] analyzeRouterRecursively: 分析路由器 %s，当前路径: %s\n",
 		context.RouterObject.Name(), context.ParentPath)
 
 	// 遍历所有包，查找对当前路由器对象的使用
@@ -134,18 +135,18 @@ func (a *Analyzer) analyzeRouterRecursively(context *RouteContext) map[string]mo
 					if a.isCallOnRouter(callExpr, context.RouterObject, pkg.TypesInfo) {
 						// 检查是否为路由分组调用
 						if isGroup, pathSegment := a.extractor.IsRouteGroupCall(callExpr, pkg.TypesInfo); isGroup {
-							fmt.Printf("[DEBUG] 发现路由分组调用: %s\n", pathSegment)
+							log.Printf("[DEBUG] 发现路由分组调用: %s\n", pathSegment)
 							newRoutes := a.handleRouteGroupCall(callExpr, context, pathSegment, pkg)
 							routes = append(routes, newRoutes...)
 						} else if isHTTP, method, pathSegment := a.extractor.IsHTTPMethodCall(callExpr, pkg.TypesInfo); isHTTP {
-							fmt.Printf("[DEBUG] 发现HTTP方法调用: %s %s\n", method, pathSegment)
+							log.Printf("[DEBUG] 发现HTTP方法调用: %s %s\n", method, pathSegment)
 							route := a.handleHTTPMethodCall(callExpr, context, method, pathSegment, pkg.TypesInfo)
 							if route != nil {
 								routeKey := fmt.Sprintf("%s:%s:%s", route.Method, route.Path, route.Handler)
 								if !a.routeCache[routeKey] {
 									a.routeCache[routeKey] = true
 									routes = append(routes, *route)
-									fmt.Printf("[DEBUG] 添加路由: %s %s -> %s (包: %s)\n", route.Method, route.Path, route.Handler, route.PackagePath)
+									log.Printf("[DEBUG] 添加路由: %s %s -> %s (包: %s)\n", route.Method, route.Path, route.Handler, route.PackagePath)
 								}
 							}
 						}
@@ -183,13 +184,13 @@ func (a *Analyzer) checkRouterGroupFunctionCall(callExpr *ast.CallExpr, context 
 			if funcKey != "" {
 				// 检查是否在循环调用
 				if context.VisitedFuncs[funcKey] {
-					fmt.Printf("[DEBUG] 检测到循环调用，跳过: %s\n", funcKey)
+					log.Printf("[DEBUG] 检测到循环调用，跳过: %s\n", funcKey)
 					continue
 				}
 
 				// 查找对应的路由分组函数
 				if rgf, exists := a.routerGroupFunctions[funcKey]; exists {
-					fmt.Printf("[DEBUG] 找到路由分组函数调用: %s\n", funcKey)
+					log.Printf("[DEBUG] 找到路由分组函数调用: %s\n", funcKey)
 
 					// 创建新的上下文，递归解析路由分组函数
 					newContext := &RouteContext{
@@ -215,7 +216,7 @@ func (a *Analyzer) checkRouterGroupFunctionCall(callExpr *ast.CallExpr, context 
 func (a *Analyzer) analyzeRouterGroupFunction(rgf *models.RouterGroupFunction, context *RouteContext) []models.RouteInfo {
 	var routes []models.RouteInfo
 
-	fmt.Printf("[DEBUG] analyzeRouterGroupFunction: 分析函数 %s\n", rgf.UniqueKey)
+	log.Printf("[DEBUG] analyzeRouterGroupFunction: 分析函数 %s\n", rgf.UniqueKey)
 
 	// 分析函数体中的路由定义
 	if rgf.FuncDecl.Body != nil {
@@ -225,18 +226,18 @@ func (a *Analyzer) analyzeRouterGroupFunction(rgf *models.RouterGroupFunction, c
 				if a.isCallOnRouter(callExpr, context.RouterObject, rgf.Package.TypesInfo) {
 					// 检查是否为路由分组调用
 					if isGroup, pathSegment := a.extractor.IsRouteGroupCall(callExpr, rgf.Package.TypesInfo); isGroup {
-						fmt.Printf("[DEBUG] 在路由分组函数中发现子分组: %s\n", pathSegment)
+						log.Printf("[DEBUG] 在路由分组函数中发现子分组: %s\n", pathSegment)
 						newRoutes := a.handleRouteGroupCall(callExpr, context, pathSegment, rgf.Package)
 						routes = append(routes, newRoutes...)
 					} else if isHTTP, method, pathSegment := a.extractor.IsHTTPMethodCall(callExpr, rgf.Package.TypesInfo); isHTTP {
-						fmt.Printf("[DEBUG] 在路由分组函数中发现HTTP方法: %s %s\n", method, pathSegment)
+						log.Printf("[DEBUG] 在路由分组函数中发现HTTP方法: %s %s\n", method, pathSegment)
 						route := a.handleHTTPMethodCall(callExpr, context, method, pathSegment, rgf.Package.TypesInfo)
 						if route != nil {
 							routeKey := fmt.Sprintf("%s:%s:%s", route.Method, route.Path, route.Handler)
 							if !a.routeCache[routeKey] {
 								a.routeCache[routeKey] = true
 								routes = append(routes, *route)
-								fmt.Printf("[DEBUG] 添加路由: %s %s -> %s\n", route.Method, route.Path, route.Handler)
+								log.Printf("[DEBUG] 添加路由: %s %s -> %s\n", route.Method, route.Path, route.Handler)
 							}
 						}
 					}
@@ -259,12 +260,12 @@ func (a *Analyzer) handleRouteGroupCall(callExpr *ast.CallExpr, context *RouteCo
 
 	// 组合新的路径
 	newPath := a.combinePaths(context.ParentPath, pathSegment)
-	fmt.Printf("[DEBUG] handleRouteGroupCall: 新路径 %s\n", newPath)
+	log.Printf("[DEBUG] handleRouteGroupCall: 新路径 %s\n", newPath)
 
 	// 查找分组调用的结果对象
 	groupObj := a.findGroupResultObject(callExpr, pkg)
 	if groupObj == nil {
-		fmt.Printf("[DEBUG] 未找到分组结果对象\n")
+		log.Printf("[DEBUG] 未找到分组结果对象\n")
 		return routes
 	}
 
@@ -288,12 +289,12 @@ func (a *Analyzer) handleRouteGroupCall(callExpr *ast.CallExpr, context *RouteCo
 func (a *Analyzer) handleHTTPMethodCall(callExpr *ast.CallExpr, context *RouteContext, method, pathSegment string, typeInfo *types.Info) *models.RouteInfo {
 	// 组合完整路径
 	fullPath := a.combinePaths(context.ParentPath, pathSegment)
-	fmt.Printf("[DEBUG] handleHTTPMethodCall: 完整路径: %s\n", fullPath)
+	log.Printf("[DEBUG] handleHTTPMethodCall: 完整路径: %s\n", fullPath)
 
 	// 提取处理函数信息（包含包信息）
 	handlerInfo := a.extractHandlerInfo(callExpr, typeInfo)
 	if handlerInfo == nil || handlerInfo.FuncDecl == nil {
-		fmt.Printf("[DEBUG] 未找到处理函数\n")
+		log.Printf("[DEBUG] 未找到处理函数\n")
 		return nil
 	}
 
@@ -311,14 +312,14 @@ func (a *Analyzer) handleHTTPMethodCall(callExpr *ast.CallExpr, context *RouteCo
 	// 使用 responseParsingEngine 分析 Handler 的请求和响应参数
 	if a.responseParsingEngine != nil {
 		handlerKey := handlerInfo.PackagePath + "." + handlerInfo.FuncDecl.Name.Name
-		fmt.Printf("[DEBUG] 尝试分析Handler参数: %s\n", handlerKey)
+		log.Printf("[DEBUG] 尝试分析Handler参数: %s\n", handlerKey)
 
 		// 分析Handler的请求和响应参数
 		if handlerAnalysisResult := a.analyzeHandlerWithResponseEngine(handlerInfo); handlerAnalysisResult != nil {
 			// 将分析结果集成到路由信息中
 			routeInfo.RequestParams = a.convertToModelRequestParams(handlerAnalysisResult.RequestParams)
 			routeInfo.ResponseSchema = a.convertToModelAPISchema(handlerAnalysisResult.Response)
-			fmt.Printf("[DEBUG] 成功集成Handler参数分析结果: 请求参数%d个\n", len(handlerAnalysisResult.RequestParams))
+			log.Printf("[DEBUG] 成功集成Handler参数分析结果: 请求参数%d个\n", len(handlerAnalysisResult.RequestParams))
 		}
 	}
 
@@ -480,12 +481,12 @@ func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.In
 
 	lastArg := callExpr.Args[len(callExpr.Args)-1]
 
-	fmt.Printf("[DEBUG] extractHandlerInfo: 提取处理函数，参数类型: %T\n", lastArg)
+	log.Printf("[DEBUG] extractHandlerInfo: 提取处理函数，参数类型: %T\n", lastArg)
 
 	// 1. 处理标识符（本包中的函数）
 	if ident, ok := lastArg.(*ast.Ident); ok {
 		if obj := typeInfo.ObjectOf(ident); obj != nil {
-			fmt.Printf("[DEBUG] extractHandlerInfo: 通过标识符查找函数: %s\n", obj.Name())
+			log.Printf("[DEBUG] extractHandlerInfo: 通过标识符查找函数: %s\n", obj.Name())
 
 			// 获取函数所在的包信息
 			pkg := obj.Pkg()
@@ -508,21 +509,21 @@ func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.In
 		if ident, ok := selExpr.X.(*ast.Ident); ok {
 			packageName := ident.Name
 			functionName := selExpr.Sel.Name
-			fmt.Printf("[DEBUG] extractHandlerInfo: 通过包选择器查找函数: %s.%s\n", packageName, functionName)
+			log.Printf("[DEBUG] extractHandlerInfo: 通过包选择器查找函数: %s.%s\n", packageName, functionName)
 
 			// 1. 优先使用类型安全的 types.PkgName.Imported() 方法
 			if obj := typeInfo.ObjectOf(ident); obj != nil {
 				if pkgName, ok := obj.(*types.PkgName); ok {
 					importedPkg := pkgName.Imported() // *types.Package
 					realPkgPath := importedPkg.Path()
-					fmt.Printf("[DEBUG] extractHandlerInfo: 通过types.PkgName解析别名 %s -> %s\n", packageName, realPkgPath)
+					log.Printf("[DEBUG] extractHandlerInfo: 通过types.PkgName解析别名 %s -> %s\n", packageName, realPkgPath)
 
 					realPkg := a.findPackageByPath(realPkgPath)
 					if realPkg != nil {
 						funcDecl := a.findFunctionDeclarationInPackage(realPkg, functionName)
 						if funcDecl != nil {
 							hasGinContext := a.hasGinContextParameter(funcDecl)
-							fmt.Printf("[DEBUG] extractHandlerInfo: 在真实包中找到函数 %s (%s) - 有gin.Context: %v\n",
+							log.Printf("[DEBUG] extractHandlerInfo: 在真实包中找到函数 %s (%s) - 有gin.Context: %v\n",
 								functionName, realPkgPath, hasGinContext)
 
 							return &HandlerInfo{
@@ -535,10 +536,10 @@ func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.In
 					}
 				} else {
 					// 可能是变量或其他类型的对象，记录但继续fallback
-					fmt.Printf("[DEBUG] extractHandlerInfo: 标识符 %s 不是包名 (类型: %T)\n", packageName, obj)
+					log.Printf("[DEBUG] extractHandlerInfo: 标识符 %s 不是包名 (类型: %T)\n", packageName, obj)
 				}
 			} else {
-				fmt.Printf("[DEBUG] extractHandlerInfo: TypesInfo中无法找到别名对象: %s\n", packageName)
+				log.Printf("[DEBUG] extractHandlerInfo: TypesInfo中无法找到别名对象: %s\n", packageName)
 			}
 
 			// 2. 使用 packages.Imports 精准fallback
@@ -546,19 +547,19 @@ func (a *Analyzer) extractHandlerInfo(callExpr *ast.CallExpr, typeInfo *types.In
 			if len(candidates) > 0 {
 				bestCandidate := a.selectBestHandlerCandidate(candidates)
 				if bestCandidate != nil {
-					fmt.Printf("[DEBUG] extractHandlerInfo: 通过imports映射找到Handler: %s (%s)\n",
+					log.Printf("[DEBUG] extractHandlerInfo: 通过imports映射找到Handler: %s (%s)\n",
 						bestCandidate.FuncDecl.Name.Name, bestCandidate.PackagePath)
 					return bestCandidate
 				}
 			}
 
 			// 3. 最后才使用暴力扫描（保留作为最后手段）
-			fmt.Printf("[DEBUG] extractHandlerInfo: 使用暴力扫描作为最后手段: %s.%s\n", packageName, functionName)
+			log.Printf("[DEBUG] extractHandlerInfo: 使用暴力扫描作为最后手段: %s.%s\n", packageName, functionName)
 			legacyCandidates := a.findHandlerCandidatesViaLegacyScan(packageName, functionName)
 			if len(legacyCandidates) > 0 {
 				bestCandidate := a.selectBestHandlerCandidate(legacyCandidates)
 				if bestCandidate != nil {
-					fmt.Printf("[DEBUG] extractHandlerInfo: 通过暴力扫描找到Handler: %s (%s)\n",
+					log.Printf("[DEBUG] extractHandlerInfo: 通过暴力扫描找到Handler: %s (%s)\n",
 						bestCandidate.FuncDecl.Name.Name, bestCandidate.PackagePath)
 					return bestCandidate
 				}
@@ -594,16 +595,6 @@ func (a *Analyzer) findPackageByPath(pkgPath string) *packages.Package {
 	return nil
 }
 
-// findPackageByName 根据包名查找包
-func (a *Analyzer) findPackageByName(pkgName string) *packages.Package {
-	for _, pkg := range a.project.Packages {
-		if pkg.Name == pkgName {
-			return pkg
-		}
-	}
-	return nil
-}
-
 func (a *Analyzer) findFunctionDeclaration(funcName string) *ast.FuncDecl {
 	var candidates []*ast.FuncDecl
 
@@ -629,23 +620,23 @@ func (a *Analyzer) findFunctionDeclaration(funcName string) *ast.FuncDecl {
 	}
 
 	// 如果有多个候选函数，优先选择有gin.Context参数的方法
-	fmt.Printf("[DEBUG] findFunctionDeclaration: 找到 %d 个同名函数 %s，进行筛选\n", len(candidates), funcName)
+	log.Printf("[DEBUG] findFunctionDeclaration: 找到 %d 个同名函数 %s，进行筛选\n", len(candidates), funcName)
 
 	for i, candidate := range candidates {
 		hasGinContext := a.hasGinContextParameter(candidate)
 		isMethod := candidate.Recv != nil
-		fmt.Printf("[DEBUG] findFunctionDeclaration: 候选 %d - 有gin.Context参数: %v, 是方法: %v\n",
+		log.Printf("[DEBUG] findFunctionDeclaration: 候选 %d - 有gin.Context参数: %v, 是方法: %v\n",
 			i+1, hasGinContext, isMethod)
 
 		// 优先选择有gin.Context参数的函数（通常是Handler）
 		if hasGinContext {
-			fmt.Printf("[DEBUG] findFunctionDeclaration: 选择有gin.Context参数的函数\n")
+			log.Printf("[DEBUG] findFunctionDeclaration: 选择有gin.Context参数的函数\n")
 			return candidate
 		}
 	}
 
 	// 如果没有找到有gin.Context的，返回第一个
-	fmt.Printf("[DEBUG] findFunctionDeclaration: 未找到有gin.Context参数的函数，返回第一个\n")
+	log.Printf("[DEBUG] findFunctionDeclaration: 未找到有gin.Context参数的函数，返回第一个\n")
 	return candidates[0]
 }
 
@@ -672,59 +663,6 @@ func (a *Analyzer) hasGinContextParameter(funcDecl *ast.FuncDecl) bool {
 	return false
 }
 
-func (a *Analyzer) findFunctionInPackage(packageName, functionName string) *ast.FuncDecl {
-	fmt.Printf("[DEBUG] findFunctionInPackage: 查找 %s.%s\n", packageName, functionName)
-
-	for _, pkg := range a.project.Packages {
-		for _, file := range pkg.Syntax {
-			for _, imp := range file.Imports {
-				if imp.Name != nil && imp.Name.Name == packageName {
-					result := a.findFunctionInImportedPackage(imp.Path.Value, functionName)
-					if result != nil {
-						fmt.Printf("[DEBUG] findFunctionInPackage: 在导入包中找到函数\n")
-						return result
-					}
-				}
-			}
-
-			if strings.HasSuffix(pkg.PkgPath, "/"+packageName) ||
-				strings.HasSuffix(pkg.PkgPath, packageName) {
-				result := a.findFunctionDeclarationInPackage(pkg, functionName)
-				if result != nil {
-					fmt.Printf("[DEBUG] findFunctionInPackage: 在包中找到函数\n")
-					return result
-				}
-			}
-		}
-	}
-
-	// 作为最后的尝试，在所有包中查找方法（有receiver的函数）
-	fmt.Printf("[DEBUG] findFunctionInPackage: 尝试查找方法 %s\n", functionName)
-	result := a.findMethodByName(functionName)
-	if result != nil {
-		fmt.Printf("[DEBUG] findFunctionInPackage: 找到方法 %s (有receiver)\n", functionName)
-		return result
-	}
-
-	fmt.Printf("[DEBUG] findFunctionInPackage: 未找到 %s.%s，创建空函数\n", packageName, functionName)
-	return &ast.FuncDecl{
-		Name: &ast.Ident{Name: functionName},
-		Type: &ast.FuncType{},
-		Body: &ast.BlockStmt{},
-	}
-}
-
-func (a *Analyzer) findFunctionInImportedPackage(importPath, functionName string) *ast.FuncDecl {
-	importPath = strings.Trim(importPath, "\"")
-
-	for _, pkg := range a.project.Packages {
-		if pkg.PkgPath == importPath {
-			return a.findFunctionDeclarationInPackage(pkg, functionName)
-		}
-	}
-	return nil
-}
-
 func (a *Analyzer) findFunctionDeclarationInPackage(pkg *packages.Package, functionName string) *ast.FuncDecl {
 	for _, file := range pkg.Syntax {
 		for _, decl := range file.Decls {
@@ -738,67 +676,23 @@ func (a *Analyzer) findFunctionDeclarationInPackage(pkg *packages.Package, funct
 	return nil
 }
 
-// findMethodByName 查找有receiver的方法（在所有包中搜索）
-func (a *Analyzer) findMethodByName(methodName string) *ast.FuncDecl {
-	var candidates []*ast.FuncDecl
-
-	// 收集所有同名方法
-	for _, pkg := range a.project.Packages {
-		for _, file := range pkg.Syntax {
-			for _, decl := range file.Decls {
-				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
-					if funcDecl.Name.Name == methodName && funcDecl.Recv != nil {
-						candidates = append(candidates, funcDecl)
-					}
-				}
-			}
-		}
-	}
-
-	if len(candidates) == 0 {
-		return nil
-	}
-
-	if len(candidates) == 1 {
-		return candidates[0]
-	}
-
-	// 如果有多个候选方法，优先选择有gin.Context参数的
-	fmt.Printf("[DEBUG] findMethodByName: 找到 %d 个同名方法 %s，进行筛选\n", len(candidates), methodName)
-
-	for i, candidate := range candidates {
-		hasGinContext := a.hasGinContextParameter(candidate)
-		fmt.Printf("[DEBUG] findMethodByName: 候选 %d - 有gin.Context参数: %v\n", i+1, hasGinContext)
-
-		// 优先选择有gin.Context参数的方法（通常是Handler）
-		if hasGinContext {
-			fmt.Printf("[DEBUG] findMethodByName: 选择有gin.Context参数的方法\n")
-			return candidate
-		}
-	}
-
-	// 如果没有找到有gin.Context的，返回第一个
-	fmt.Printf("[DEBUG] findMethodByName: 未找到有gin.Context参数的方法，返回第一个\n")
-	return candidates[0]
-}
-
 // analyzeHandlerWithFuncBody 使用funcBodyEngine分析Handler的请求和响应参数
 func (a *Analyzer) analyzeHandlerWithResponseEngine(handlerInfo *HandlerInfo) *helper.HandlerAnalysisResult {
 	if handlerInfo == nil || handlerInfo.FuncDecl == nil || handlerInfo.Package == nil {
-		fmt.Printf("[DEBUG] analyzeHandlerWithResponseEngine: 参数检查失败 - handlerInfo: %v, FuncDecl: %v, Package: %v\n",
+		log.Printf("[DEBUG] analyzeHandlerWithResponseEngine: 参数检查失败 - handlerInfo: %v, FuncDecl: %v, Package: %v\n",
 			handlerInfo != nil, handlerInfo != nil && handlerInfo.FuncDecl != nil, handlerInfo != nil && handlerInfo.Package != nil)
 		return nil
 	}
 
-	fmt.Printf("[DEBUG] analyzeHandlerWithResponseEngine: 分析 %s.%s\n", handlerInfo.PackagePath, handlerInfo.FuncDecl.Name.Name)
-	fmt.Printf("[DEBUG] analyzeHandlerWithResponseEngine: Package路径: %s, Package名称: %s\n", handlerInfo.Package.PkgPath, handlerInfo.Package.Name)
-	fmt.Printf("[DEBUG] analyzeHandlerWithResponseEngine: TypesInfo为空: %v\n", handlerInfo.Package.TypesInfo == nil)
+	log.Printf("[DEBUG] analyzeHandlerWithResponseEngine: 分析 %s.%s\n", handlerInfo.PackagePath, handlerInfo.FuncDecl.Name.Name)
+	log.Printf("[DEBUG] analyzeHandlerWithResponseEngine: Package路径: %s, Package名称: %s\n", handlerInfo.Package.PkgPath, handlerInfo.Package.Name)
+	log.Printf("[DEBUG] analyzeHandlerWithResponseEngine: TypesInfo为空: %v\n", handlerInfo.Package.TypesInfo == nil)
 
 	// 使用responseParsingEngine直接分析Handler
 	result := a.responseParsingEngine.AnalyzeHandlerComplete(handlerInfo.FuncDecl, handlerInfo.Package)
 
 	if result != nil {
-		fmt.Printf("[DEBUG] responseParsingEngine分析成功: 请求参数%d个, 响应类型%s\n",
+		log.Printf("[DEBUG] responseParsingEngine分析成功: 请求参数%d个, 响应类型%s\n",
 			len(result.RequestParams),
 			func() string {
 				if result.Response != nil {
@@ -808,7 +702,7 @@ func (a *Analyzer) analyzeHandlerWithResponseEngine(handlerInfo *HandlerInfo) *h
 			}())
 		return result
 	} else {
-		fmt.Printf("[DEBUG] responseParsingEngine分析失败\n")
+		log.Printf("[DEBUG] responseParsingEngine分析失败\n")
 		return nil
 	}
 }
@@ -857,22 +751,6 @@ func (a *Analyzer) convertToModelAPISchema(helperSchema *helper.APISchema) *mode
 	}
 
 	return modelSchema
-}
-
-// findPackageContainingFunction 查找包含指定函数的包（用于解析包别名）
-func (a *Analyzer) findPackageContainingFunction(functionName string) *packages.Package {
-	for _, pkg := range a.project.Packages {
-		for _, file := range pkg.Syntax {
-			for _, decl := range file.Decls {
-				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
-					if funcDecl.Name.Name == functionName {
-						return pkg
-					}
-				}
-			}
-		}
-	}
-	return nil
 }
 
 // packageMatchesAlias 检查包是否匹配给定的别名
@@ -941,23 +819,6 @@ func (a *Analyzer) camelToUnderscore(s string) string {
 	return string(result)
 }
 
-// isReasonableHandlerPackagePath 检查包路径是否合理用于Handler
-func (a *Analyzer) isReasonableHandlerPackagePath(packagePath, alias string) bool {
-	// 如果指向route包，通常不是真正的Handler所在位置
-	if strings.Contains(packagePath, "/route") && !strings.Contains(packagePath, "/api/") {
-		return false
-	}
-
-	// 如果别名暗示应该在api包中，但路径不包含api，则可能不合理
-	if strings.Contains(alias, "api") || strings.Contains(alias, "Api") {
-		if !strings.Contains(packagePath, "/api/") {
-			return false
-		}
-	}
-
-	return true
-}
-
 // selectBestHandlerCandidate 从候选函数中选择最佳的Handler
 func (a *Analyzer) selectBestHandlerCandidate(candidates []*HandlerInfo) *HandlerInfo {
 	if len(candidates) == 0 {
@@ -968,7 +829,7 @@ func (a *Analyzer) selectBestHandlerCandidate(candidates []*HandlerInfo) *Handle
 		return candidates[0]
 	}
 
-	fmt.Printf("[DEBUG] selectBestHandlerCandidate: 评估 %d 个候选函数\n", len(candidates))
+	log.Printf("[DEBUG] selectBestHandlerCandidate: 评估 %d 个候选函数\n", len(candidates))
 
 	var bestCandidate *HandlerInfo
 	bestScore := -1
@@ -977,7 +838,7 @@ func (a *Analyzer) selectBestHandlerCandidate(candidates []*HandlerInfo) *Handle
 		score := a.calculateHandlerScore(candidate)
 		hasGinContext := a.hasGinContextParameter(candidate.FuncDecl)
 
-		fmt.Printf("[DEBUG] selectBestHandlerCandidate: 候选 %d - %s (%s) - gin.Context: %v, 评分: %d\n",
+		log.Printf("[DEBUG] selectBestHandlerCandidate: 候选 %d - %s (%s) - gin.Context: %v, 评分: %d\n",
 			i+1, candidate.FuncDecl.Name.Name, candidate.PackagePath, hasGinContext, score)
 
 		if score > bestScore {
@@ -1019,7 +880,7 @@ func (a *Analyzer) calculateHandlerScore(candidate *HandlerInfo) int {
 func (a *Analyzer) findHandlerCandidatesViaImports(aliasName, functionName string) []*HandlerInfo {
 	var candidates []*HandlerInfo
 
-	fmt.Printf("[DEBUG] findHandlerCandidatesViaImports: 搜索别名 %s 对应的导入包\n", aliasName)
+	log.Printf("[DEBUG] findHandlerCandidatesViaImports: 搜索别名 %s 对应的导入包\n", aliasName)
 
 	// 遍历所有包的导入映射
 	for _, pkg := range a.project.Packages {
@@ -1028,7 +889,7 @@ func (a *Analyzer) findHandlerCandidatesViaImports(aliasName, functionName strin
 			// 1. 检查包名是否匹配别名
 			// 2. 检查导入时是否使用了别名
 			if a.importMatchesAlias(importedPkg, aliasName, importPath) {
-				fmt.Printf("[DEBUG] findHandlerCandidatesViaImports: 找到匹配的导入 %s -> %s (包名: %s)\n",
+				log.Printf("[DEBUG] findHandlerCandidatesViaImports: 找到匹配的导入 %s -> %s (包名: %s)\n",
 					aliasName, importPath, importedPkg.Name)
 
 				// 在这个导入包中查找函数
@@ -1045,7 +906,7 @@ func (a *Analyzer) findHandlerCandidatesViaImports(aliasName, functionName strin
 		}
 	}
 
-	fmt.Printf("[DEBUG] findHandlerCandidatesViaImports: 找到 %d 个候选\n", len(candidates))
+	log.Printf("[DEBUG] findHandlerCandidatesViaImports: 找到 %d 个候选\n", len(candidates))
 	return candidates
 }
 
@@ -1053,7 +914,7 @@ func (a *Analyzer) findHandlerCandidatesViaImports(aliasName, functionName strin
 func (a *Analyzer) findHandlerCandidatesViaLegacyScan(aliasName, functionName string) []*HandlerInfo {
 	var candidates []*HandlerInfo
 
-	fmt.Printf("[DEBUG] findHandlerCandidatesViaLegacyScan: 暴力扫描所有包查找 %s.%s\n", aliasName, functionName)
+	log.Printf("[DEBUG] findHandlerCandidatesViaLegacyScan: 暴力扫描所有包查找 %s.%s\n", aliasName, functionName)
 
 	for _, pkg := range a.project.Packages {
 		for _, file := range pkg.Syntax {
@@ -1062,7 +923,7 @@ func (a *Analyzer) findHandlerCandidatesViaLegacyScan(aliasName, functionName st
 					if funcDecl.Name.Name == functionName {
 						// 检查这个包是否匹配包别名
 						if pkg.Name == aliasName || a.packageMatchesAlias(pkg, aliasName) {
-							fmt.Printf("[DEBUG] findHandlerCandidatesViaLegacyScan: 找到候选函数 %s 在包 %s (%s)\n",
+							log.Printf("[DEBUG] findHandlerCandidatesViaLegacyScan: 找到候选函数 %s 在包 %s (%s)\n",
 								functionName, pkg.Name, pkg.PkgPath)
 							candidates = append(candidates, &HandlerInfo{
 								FuncDecl:    funcDecl,
@@ -1077,7 +938,7 @@ func (a *Analyzer) findHandlerCandidatesViaLegacyScan(aliasName, functionName st
 		}
 	}
 
-	fmt.Printf("[DEBUG] findHandlerCandidatesViaLegacyScan: 找到 %d 个候选\n", len(candidates))
+	log.Printf("[DEBUG] findHandlerCandidatesViaLegacyScan: 找到 %d 个候选\n", len(candidates))
 	return candidates
 }
 

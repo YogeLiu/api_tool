@@ -81,8 +81,6 @@ func convertRoute(routeMap map[string]interface{}, successOnly bool) models.Rout
 		Method:      getString(routeMap, "method"),
 		Path:        getString(routeMap, "path"),
 		Handler:     getString(routeMap, "handler"),
-		Request:     models.RequestInfo{},
-		Response:    models.ResponseInfo{},
 	}
 
 	// 转换请求参数

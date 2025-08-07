@@ -19,9 +19,9 @@ import (
 func main() {
 	projectPath := flag.String("path", ".", "要分析的 Go 项目的根路径。")
 	framework := flag.String("framework", "gin", "目标框架 (gin 或 iris)。")
-	outputFormat := flag.String("format", "json", "输出格式 (json, yapi 或 swagger)。")
+	outputFormat := flag.String("format", "json", "输出格式 (json, swagger)。")
 	outputFile := flag.String("output", "", "输出文件路径 (可选)。")
-	projectName := flag.String("project", "", "项目名称 (YAPI格式时使用)。")
+	projectName := flag.String("project", "", "项目名称 (可选)。")
 	pathFilter := flag.String("filter", "", "路径过滤器，只显示包含指定路径的路由 (可选)。")
 	flag.Parse()
 
@@ -66,11 +66,6 @@ func main() {
 	log.Printf("4. 生成 %s 格式输出...", *outputFormat)
 
 	switch *outputFormat {
-	case "yapi":
-		// YAPI格式导出
-		if err := exportToYAPI(apiInfo, *projectPath, *projectName, *outputFile); err != nil {
-			log.Fatalf("YAPI导出失败: %v", err)
-		}
 	case "swagger":
 		// Swagger格式导出
 		if err := exportToSwagger(apiInfo, *projectPath, *projectName, *outputFile); err != nil {
@@ -96,26 +91,6 @@ func main() {
 	}
 
 	log.Println("\n分析完成。")
-}
-
-// exportToYAPI 导出为YAPI格式
-func exportToYAPI(apiInfo *models.APIInfo, projectPath, projectName, outputFile string) error {
-	// 如果没有指定项目名称，使用项目路径的最后一部分
-	if projectName == "" {
-		projectName = filepath.Base(projectPath)
-	}
-
-	// 确定输出目录
-	outputDir := "./yapi_exports"
-	if outputFile != "" {
-		outputDir = filepath.Dir(outputFile)
-	}
-
-	// 创建YAPI导出器
-	yapiExporter := exporter.NewYAPIExporter(projectName, "", outputDir)
-
-	// 执行导出
-	return yapiExporter.Export(apiInfo)
 }
 
 // exportToSwagger 导出为Swagger格式

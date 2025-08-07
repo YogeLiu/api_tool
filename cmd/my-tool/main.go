@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/YogeLiu/api-tool/pkg/analyzer"
 	"github.com/YogeLiu/api-tool/pkg/exporter"
@@ -21,6 +22,7 @@ func main() {
 	outputFormat := flag.String("format", "json", "输出格式 (json, yapi 或 swagger)。")
 	outputFile := flag.String("output", "", "输出文件路径 (可选)。")
 	projectName := flag.String("project", "", "项目名称 (YAPI格式时使用)。")
+	pathFilter := flag.String("filter", "", "路径过滤器，只显示包含指定路径的路由 (可选)。")
 	flag.Parse()
 
 	// 检查是否有位置参数，如果有则使用位置参数作为项目路径
@@ -55,6 +57,12 @@ func main() {
 		log.Fatalf("核心分析失败: %v", err)
 	}
 
+	// 如果指定了路径过滤器，过滤路由
+	if *pathFilter != "" {
+		apiInfo = filterRoutesByPath(apiInfo, *pathFilter)
+		log.Printf("路径过滤器 '%s' 应用后，剩余路由数: %d", *pathFilter, len(apiInfo.Routes))
+	}
+
 	log.Printf("4. 生成 %s 格式输出...", *outputFormat)
 
 	switch *outputFormat {
@@ -83,7 +91,7 @@ func main() {
 			log.Printf("✅ JSON输出已保存到: %s", *outputFile)
 		} else {
 			// 输出到控制台
-			os.Stdout.Write(output)
+			printRoutesToTerminal(apiInfo)
 		}
 	}
 
@@ -128,4 +136,29 @@ func exportToSwagger(apiInfo *models.APIInfo, projectPath, projectName, outputFi
 
 	// 执行导出
 	return swaggerExporter.Export(apiInfo)
+}
+
+// filterRoutesByPath 根据路径过滤器过滤路由
+func filterRoutesByPath(apiInfo *models.APIInfo, pathFilter string) *models.APIInfo {
+	var filteredRoutes []models.RouteInfo
+
+	for _, route := range apiInfo.Routes {
+		if strings.Contains(route.Path, pathFilter) {
+			filteredRoutes = append(filteredRoutes, route)
+		}
+	}
+
+	return &models.APIInfo{
+		Routes: filteredRoutes,
+	}
+}
+
+// printRoutesToTerminal 以JSON格式打印路由到终端
+func printRoutesToTerminal(apiInfo *models.APIInfo) {
+	output, err := json.MarshalIndent(apiInfo, "", "  ")
+	if err != nil {
+		log.Fatalf("JSON序列化失败: %v", err)
+	}
+
+	os.Stdout.Write(output)
 }

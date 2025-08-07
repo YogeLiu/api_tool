@@ -17,6 +17,16 @@ import (
 )
 
 func main() {
+	// 设置日志文件
+	logPath := "/tmp/var/log"
+	os.MkdirAll(logPath, 0755)
+	logFile, err := os.OpenFile(filepath.Join(logPath, "api-tool.log"), os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("无法打开日志文件: %v", err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
 	projectPath := flag.String("path", ".", "要分析的 Go 项目的根路径。")
 	framework := flag.String("framework", "gin", "目标框架 (gin 或 iris)。")
 	outputFormat := flag.String("format", "json", "输出格式 (json, swagger)。")

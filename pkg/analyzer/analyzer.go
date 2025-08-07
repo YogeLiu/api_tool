@@ -298,15 +298,28 @@ func (a *Analyzer) handleHTTPMethodCall(callExpr *ast.CallExpr, context *RouteCo
 		return nil
 	}
 
+	var startLine, endLine int
+	if handlerInfo.Package != nil && handlerInfo.Package.Fset != nil {
+		startPos := handlerInfo.Package.Fset.Position(handlerInfo.FuncDecl.Pos())
+		endPos := handlerInfo.Package.Fset.Position(handlerInfo.FuncDecl.End())
+		startLine = startPos.Line
+		endLine = endPos.Line
+	} else {
+		// 如果无法获取FileSet，使用默认值
+		startLine = 0
+		endLine = 0
+		log.Printf("[DEBUG] 无法获取FileSet，使用默认行号\n")
+	}
+
 	// 创建基础路由信息
 	routeInfo := &models.RouteInfo{
 		PackageName:      handlerInfo.PackageName,
 		PackagePath:      handlerInfo.PackagePath,
-		HandlerStartLine: int(handlerInfo.FuncDecl.Pos()),
-		HandlerEndLine:   int(handlerInfo.FuncDecl.End()),
+		Handler:          handlerInfo.FuncDecl.Name.Name,
+		HandlerStartLine: startLine,
+		HandlerEndLine:   endLine,
 		Method:           method,
 		Path:             fullPath,
-		Handler:          handlerInfo.FuncDecl.Name.Name,
 	}
 
 	// 使用 responseParsingEngine 分析 Handler 的请求和响应参数

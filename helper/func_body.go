@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -104,14 +105,14 @@ func NewResponseParsingEngine(packages []*packages.Package) *ResponseParsingEngi
 
 // 全局预处理阶段 (技术规范步骤1)
 func (engine *ResponseParsingEngine) performGlobalPreprocessing() {
-	fmt.Printf("[DEBUG] 开始全局预处理阶段...\n")
+	log.Printf("[DEBUG] 开始全局预处理阶段...\n")
 
 	// 遍历所有包进行预处理
 	for _, pkg := range engine.allPackages {
 		engine.preprocessPackage(pkg)
 	}
 
-	fmt.Printf("[DEBUG] 全局预处理完成: 发现 %d 个响应封装函数, %d 个结构体\n",
+	log.Printf("[DEBUG] 全局预处理完成: 发现 %d 个响应封装函数, %d 个结构体\n",
 		len(engine.globalMappings.ResponseWrappers),
 		len(engine.globalMappings.StructTagMap))
 }
@@ -137,7 +138,7 @@ func (engine *ResponseParsingEngine) identifyResponseWrapperFunctions(pkg *packa
 			if funcDecl, ok := decl.(*ast.FuncDecl); ok {
 				// 跳过没有函数体的函数（注释、接口声明等）
 				if funcDecl.Body == nil {
-					fmt.Printf("[DEBUG] 跳过无函数体的函数: %s\n", funcDecl.Name.Name)
+					log.Printf("[DEBUG] 跳过无函数体的函数: %s\n", funcDecl.Name.Name)
 					continue
 				}
 
@@ -145,7 +146,7 @@ func (engine *ResponseParsingEngine) identifyResponseWrapperFunctions(pkg *packa
 				if wrapper := engine.analyzeResponseWrapperCandidate(funcDecl, pkg); wrapper != nil {
 					funcObj := pkg.TypesInfo.ObjectOf(funcDecl.Name).(*types.Func)
 					engine.globalMappings.ResponseWrappers[funcObj] = wrapper
-					fmt.Printf("[DEBUG] 发现响应封装函数: %s (gin.Context参数索引: %d, 数据参数索引: %d)\n",
+					log.Printf("[DEBUG] 发现响应封装函数: %s (gin.Context参数索引: %d, 数据参数索引: %d)\n",
 						funcDecl.Name.Name, wrapper.GinContextIdx, wrapper.DataParamIdx)
 				}
 			}
@@ -402,7 +403,7 @@ func (engine *ResponseParsingEngine) analyzeStructLiteralMapping(
 					// 检查是否为函数参数
 					if paramIdx := engine.getParameterIndex(obj, funcDecl); paramIdx != -1 {
 						fieldMapping[fieldName] = paramIdx
-						fmt.Printf("[DEBUG] 发现参数映射: %s.%s <- 参数[%d]\n",
+						log.Printf("[DEBUG] 发现参数映射: %s.%s <- 参数[%d]\n",
 							funcDecl.Name.Name, fieldName, paramIdx)
 					}
 				}
@@ -434,7 +435,7 @@ func (engine *ResponseParsingEngine) AnalyzeHandlerResponse(handlerDecl *ast.Fun
 	// 步骤1: 定位业务响应表达式（c.JSON调用或响应封装函数调用）
 	responseExpr := engine.findLastResponseExpression(handlerDecl, pkg)
 	if responseExpr == nil {
-		fmt.Printf("[DEBUG] 未找到响应表达式\n")
+		log.Printf("[DEBUG] 未找到响应表达式\n")
 		return nil
 	}
 
@@ -470,7 +471,7 @@ func (engine *ResponseParsingEngine) isGinJSONCall(callExpr *ast.CallExpr, pkg *
 
 // 响应表达式类型解析 (技术规范核心算法)
 func (engine *ResponseParsingEngine) resolveResponseExpression(expr ast.Expr, pkg *packages.Package) *APISchema {
-	fmt.Printf("[DEBUG] 统一递归解析响应表达式: %T\n", expr)
+	log.Printf("[DEBUG] 统一递归解析响应表达式: %T\n", expr)
 
 	switch e := expr.(type) {
 	case *ast.CallExpr:
@@ -486,14 +487,14 @@ func (engine *ResponseParsingEngine) resolveResponseExpression(expr ast.Expr, pk
 		// 4. 选择器表达式 - 递归解析包选择器
 		return engine.resolveSelectorExprRecursive(e, pkg)
 	default:
-		fmt.Printf("[DEBUG] 未支持的响应表达式类型: %T\n", expr)
+		log.Printf("[DEBUG] 未支持的响应表达式类型: %T\n", expr)
 		return &APISchema{Type: "unknown", Description: "unsupported expression type"}
 	}
 }
 
 // 直接分析封装函数的参数 (简化版本)
 func (engine *ResponseParsingEngine) analyzeWrapperFunctionArgs(wrapper *ResponseWrapperFunc, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
-	fmt.Printf("[DEBUG] 直接分析封装函数参数，参数数量: %d，数据参数索引: %d\n", len(callArgs), wrapper.DataParamIdx)
+	log.Printf("[DEBUG] 直接分析封装函数参数，参数数量: %d，数据参数索引: %d\n", len(callArgs), wrapper.DataParamIdx)
 
 	// 创建基础响应结构 (基于Response类型)
 	responseSchema := &APISchema{
@@ -509,21 +510,21 @@ func (engine *ResponseParsingEngine) analyzeWrapperFunctionArgs(wrapper *Respons
 	// 如果有数据参数，解析其具体类型
 	if wrapper.DataParamIdx >= 0 && wrapper.DataParamIdx < len(callArgs) {
 		dataArg := callArgs[wrapper.DataParamIdx]
-		fmt.Printf("[DEBUG] 分析数据参数[%d]: %T\n", wrapper.DataParamIdx, dataArg)
+		log.Printf("[DEBUG] 分析数据参数[%d]: %T\n", wrapper.DataParamIdx, dataArg)
 
 		dataType := pkg.TypesInfo.TypeOf(dataArg)
 		if dataType != nil {
-			fmt.Printf("[DEBUG] 数据参数类型: %s\n", dataType.String())
+			log.Printf("[DEBUG] 数据参数类型: %s\n", dataType.String())
 			injectedSchema := engine.resolveType(dataType, engine.maxDepth)
-			fmt.Printf("[DEBUG] ✅ 参数类型注入成功: Data字段 interface{} -> %s\n", injectedSchema.Type)
+			log.Printf("[DEBUG] ✅ 参数类型注入成功: Data字段 interface{} -> %s\n", injectedSchema.Type)
 
 			// 替换 Data 字段的类型信息
 			responseSchema.Properties["data"] = injectedSchema
 		} else {
-			fmt.Printf("[DEBUG] ❌ 无法获取数据参数类型\n")
+			log.Printf("[DEBUG] ❌ 无法获取数据参数类型\n")
 		}
 	} else {
-		fmt.Printf("[DEBUG] ❌ 数据参数索引无效: %d >= %d\n", wrapper.DataParamIdx, len(callArgs))
+		log.Printf("[DEBUG] ❌ 数据参数索引无效: %d >= %d\n", wrapper.DataParamIdx, len(callArgs))
 	}
 
 	return responseSchema
@@ -567,10 +568,10 @@ func (engine *ResponseParsingEngine) findFunctionDeclaration(funcObj *types.Func
 				if obj := targetPkg.TypesInfo.ObjectOf(funcDecl.Name); obj == funcObj {
 					// 验证函数确实有函数体（不是注释或声明）
 					if funcDecl.Body != nil {
-						fmt.Printf("[DEBUG] 找到函数定义: %s (有函数体)\n", funcDecl.Name.Name)
+						log.Printf("[DEBUG] 找到函数定义: %s (有函数体)\n", funcDecl.Name.Name)
 						return funcDecl
 					} else {
-						fmt.Printf("[DEBUG] 跳过函数声明: %s (无函数体)\n", funcDecl.Name.Name)
+						log.Printf("[DEBUG] 跳过函数声明: %s (无函数体)\n", funcDecl.Name.Name)
 					}
 				}
 			}
@@ -585,10 +586,10 @@ func (engine *ResponseParsingEngine) findFunctionDeclaration(funcObj *types.Func
 					if obj := pkg.TypesInfo.ObjectOf(funcDecl.Name); obj == funcObj {
 						// 验证函数确实有函数体（不是注释或声明）
 						if funcDecl.Body != nil {
-							fmt.Printf("[DEBUG] 找到函数定义: %s (有函数体)\n", funcDecl.Name.Name)
+							log.Printf("[DEBUG] 找到函数定义: %s (有函数体)\n", funcDecl.Name.Name)
 							return funcDecl
 						} else {
-							fmt.Printf("[DEBUG] 跳过函数声明: %s (无函数体)\n", funcDecl.Name.Name)
+							log.Printf("[DEBUG] 跳过函数声明: %s (无函数体)\n", funcDecl.Name.Name)
 						}
 					}
 				}
@@ -601,30 +602,30 @@ func (engine *ResponseParsingEngine) findFunctionDeclaration(funcObj *types.Func
 
 // 递归解析函数调用 (统一的函数调用处理)
 func (engine *ResponseParsingEngine) resolveFunctionCallRecursive(callExpr *ast.CallExpr, pkg *packages.Package) *APISchema {
-	fmt.Printf("[DEBUG] 递归解析函数调用\n")
+	log.Printf("[DEBUG] 递归解析函数调用\n")
 
 	// 1. 获取函数对象
 	funcObj := engine.getFunctionObject(callExpr, pkg)
 	if funcObj == nil {
-		fmt.Printf("[DEBUG] 无法获取函数对象，使用fallback解析\n")
+		log.Printf("[DEBUG] 无法获取函数对象，使用fallback解析\n")
 		return engine.resolveFallbackType(callExpr, pkg)
 	}
 
-	fmt.Printf("[DEBUG] 函数名: %s\n", funcObj.Name())
+	log.Printf("[DEBUG] 函数名: %s\n", funcObj.Name())
 
 	// 2. 检查是否为响应封装函数
 	if wrapper, ok := engine.globalMappings.ResponseWrappers[funcObj]; ok {
-		fmt.Printf("[DEBUG] 发现响应封装函数，直接解析参数\n")
+		log.Printf("[DEBUG] 发现响应封装函数，直接解析参数\n")
 		return engine.analyzeWrapperFunctionArgs(wrapper, callExpr.Args, pkg)
 	}
 
 	// 3. 普通函数：分析函数返回的内容
-	fmt.Printf("[DEBUG] 普通函数，分析返回类型和参数\n")
+	log.Printf("[DEBUG] 普通函数，分析返回类型和参数\n")
 
 	// 3.1 获取函数声明
 	funcDecl := engine.findFunctionDeclaration(funcObj, pkg)
 	if funcDecl == nil {
-		fmt.Printf("[DEBUG] 无法找到函数声明，使用类型信息\n")
+		log.Printf("[DEBUG] 无法找到函数声明，使用类型信息\n")
 		return engine.resolveFunctionByTypeInfo(callExpr, pkg)
 	}
 
@@ -641,14 +642,14 @@ func (engine *ResponseParsingEngine) resolveFunctionByTypeInfo(callExpr *ast.Cal
 		// 如果是Response类型，尝试参数注入
 		if schema != nil && schema.Properties != nil {
 			if dataField, exists := schema.Properties["Data"]; exists && dataField.Type == "any" {
-				fmt.Printf("[DEBUG] 尝试Response类型参数注入\n")
+				log.Printf("[DEBUG] 尝试Response类型参数注入\n")
 				if len(callExpr.Args) >= 2 {
 					dataArg := callExpr.Args[1]
 					dataType := pkg.TypesInfo.TypeOf(dataArg)
 					if dataType != nil {
 						injectedSchema := engine.resolveType(dataType, engine.maxDepth)
 						schema.Properties["Data"] = injectedSchema
-						fmt.Printf("[DEBUG] ✅ 参数注入成功: %s\n", injectedSchema.Type)
+						log.Printf("[DEBUG] ✅ 参数注入成功: %s\n", injectedSchema.Type)
 					}
 				}
 			}
@@ -661,7 +662,7 @@ func (engine *ResponseParsingEngine) resolveFunctionByTypeInfo(callExpr *ast.Cal
 
 // 递归分析函数返回语句
 func (engine *ResponseParsingEngine) analyzeFunctionReturnRecursive(funcDecl *ast.FuncDecl, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
-	fmt.Printf("[DEBUG] 递归分析函数 %s 的返回语句\n", funcDecl.Name.Name)
+	log.Printf("[DEBUG] 递归分析函数 %s 的返回语句\n", funcDecl.Name.Name)
 
 	if funcDecl.Body == nil {
 		return &APISchema{Type: "unknown", Description: "no function body"}
@@ -681,7 +682,7 @@ func (engine *ResponseParsingEngine) analyzeFunctionReturnRecursive(funcDecl *as
 		return &APISchema{Type: "unknown", Description: "no return statement"}
 	}
 
-	fmt.Printf("[DEBUG] 找到返回表达式: %T\n", returnExpr)
+	log.Printf("[DEBUG] 找到返回表达式: %T\n", returnExpr)
 
 	// 递归解析返回表达式，并注入调用参数的类型信息
 	return engine.resolveReturnExpressionWithArgs(returnExpr, funcDecl, callArgs, pkg)
@@ -706,7 +707,7 @@ func (engine *ResponseParsingEngine) resolveReturnExpressionWithArgs(returnExpr 
 		// 其他类型，使用基础解析
 		returnType := pkg.TypesInfo.TypeOf(returnExpr)
 		if returnType == nil {
-			fmt.Printf("[DEBUG] ❌ 无法获取返回表达式类型: %T\n", returnExpr)
+			log.Printf("[DEBUG] ❌ 无法获取返回表达式类型: %T\n", returnExpr)
 			return &APISchema{Type: "unknown", Description: "unable to get return expression type"}
 		}
 		return engine.resolveType(returnType, engine.maxDepth)
@@ -715,7 +716,7 @@ func (engine *ResponseParsingEngine) resolveReturnExpressionWithArgs(returnExpr 
 
 // 解析复合字面量并注入参数类型
 func (engine *ResponseParsingEngine) resolveCompositeLiteralWithArgs(compLit *ast.CompositeLit, funcDecl *ast.FuncDecl, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
-	fmt.Printf("[DEBUG] 解析复合字面量并注入参数类型\n")
+	log.Printf("[DEBUG] 解析复合字面量并注入参数类型\n")
 
 	// 创建字段映射
 	properties := make(map[string]*APISchema)
@@ -738,7 +739,7 @@ func (engine *ResponseParsingEngine) resolveCompositeLiteralWithArgs(compLit *as
 			valueSchema := engine.resolveValueWithParameterInjection(kv.Value, funcDecl, callArgs, pkg)
 			properties[keyName] = valueSchema
 
-			fmt.Printf("[DEBUG] 字段 %s: %s\n", keyName, valueSchema.Type)
+			log.Printf("[DEBUG] 字段 %s: %s\n", keyName, valueSchema.Type)
 		}
 	}
 
@@ -754,7 +755,7 @@ func (engine *ResponseParsingEngine) resolveValueWithParameterInjection(valueExp
 	case *ast.Ident:
 		// 如果是参数标识符，注入实际参数类型
 		if paramType := engine.getParameterType(val.Name, funcDecl, callArgs, pkg); paramType != nil {
-			fmt.Printf("[DEBUG] ✅ 参数类型注入: %s -> %s\n", val.Name, paramType.String())
+			log.Printf("[DEBUG] ✅ 参数类型注入: %s -> %s\n", val.Name, paramType.String())
 			return engine.resolveType(paramType, engine.maxDepth)
 		}
 		// 否则使用默认解析
@@ -771,7 +772,7 @@ func (engine *ResponseParsingEngine) resolveValueWithParameterInjection(valueExp
 
 // 解析一元表达式 (如 &Response{...})
 func (engine *ResponseParsingEngine) resolveUnaryExpressionWithArgs(unaryExpr *ast.UnaryExpr, funcDecl *ast.FuncDecl, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
-	fmt.Printf("[DEBUG] 解析一元表达式: %s\n", unaryExpr.Op.String())
+	log.Printf("[DEBUG] 解析一元表达式: %s\n", unaryExpr.Op.String())
 
 	// 处理取地址操作符 (&)
 	if unaryExpr.Op == token.AND {
@@ -820,15 +821,15 @@ func (engine *ResponseParsingEngine) getFunctionObject(callExpr *ast.CallExpr, p
 	switch fun := callExpr.Fun.(type) {
 	case *ast.Ident:
 		// 直接函数调用
-		fmt.Printf("[DEBUG] 尝试解析标识符: %s\n", fun.Name)
+		log.Printf("[DEBUG] 尝试解析标识符: %s\n", fun.Name)
 		if obj := pkg.TypesInfo.ObjectOf(fun); obj != nil {
-			fmt.Printf("[DEBUG] 找到对象: %T, %s\n", obj, obj.String())
+			log.Printf("[DEBUG] 找到对象: %T, %s\n", obj, obj.String())
 			if funcObj, ok := obj.(*types.Func); ok {
-				fmt.Printf("[DEBUG] 成功解析函数: %s\n", funcObj.Name())
+				log.Printf("[DEBUG] 成功解析函数: %s\n", funcObj.Name())
 				return funcObj
 			}
 		} else {
-			fmt.Printf("[DEBUG] 无法找到标识符对象: %s\n", fun.Name)
+			log.Printf("[DEBUG] 无法找到标识符对象: %s\n", fun.Name)
 		}
 	case *ast.SelectorExpr:
 		// 包选择器调用
@@ -1718,7 +1719,7 @@ func (a *GinHandlerAnalyzer) Analyze() map[string]*HandlerAnalysisResult {
 
 					// 输出完整的分析结果（包含请求参数和响应）
 					if jsonData, err := json.MarshalIndent(result, "", "  "); err == nil {
-						fmt.Printf("📋 Handler分析结果:\n%s\n\n", string(jsonData))
+						log.Printf("📋 Handler分析结果:\n%s\n\n", string(jsonData))
 					}
 					results[result.PackagePath+"."+result.HandlerName] = result
 				}
@@ -1809,12 +1810,12 @@ func (engine *ResponseParsingEngine) findLastResponseExpression(handlerDecl *ast
 			if engine.isGinJSONCall(callExpr, pkg) {
 				if len(callExpr.Args) >= 2 {
 					lastResponseExpr = callExpr.Args[1]
-					fmt.Printf("[DEBUG] 找到c.JSON调用，响应表达式类型: %T\n", lastResponseExpr)
+					log.Printf("[DEBUG] 找到c.JSON调用，响应表达式类型: %T\n", lastResponseExpr)
 				}
 			} else if engine.isResponseWrapperCall(callExpr, pkg) {
 				// 检查是否为响应封装函数调用
 				lastResponseExpr = callExpr
-				fmt.Printf("[DEBUG] 找到响应封装函数调用: %T\n", lastResponseExpr)
+				log.Printf("[DEBUG] 找到响应封装函数调用: %T\n", lastResponseExpr)
 			}
 		}
 		return true
@@ -1853,7 +1854,7 @@ func (analyzer *RequestParamAnalyzer) AnalyzeHandlerParams(handlerDecl *ast.Func
 		return params
 	}
 
-	fmt.Printf("[DEBUG] 开始分析Handler请求参数: %s\n", handlerDecl.Name.Name)
+	log.Printf("[DEBUG] 开始分析Handler请求参数: %s\n", handlerDecl.Name.Name)
 
 	// 遍历函数体，查找参数绑定调用
 	ast.Inspect(handlerDecl.Body, func(node ast.Node) bool {
@@ -1871,7 +1872,7 @@ func (analyzer *RequestParamAnalyzer) AnalyzeHandlerParams(handlerDecl *ast.Func
 		return true
 	})
 
-	fmt.Printf("[DEBUG] Handler %s 发现 %d 个请求参数\n", handlerDecl.Name.Name, len(params))
+	log.Printf("[DEBUG] Handler %s 发现 %d 个请求参数\n", handlerDecl.Name.Name, len(params))
 	return params
 }
 

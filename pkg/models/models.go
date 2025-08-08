@@ -14,17 +14,17 @@ type APIInfo struct {
 
 // RouteInfo 代表单个API路由的信息
 type RouteInfo struct {
-	PackageName string       `json:"package_name"` // 包名
-	PackagePath string       `json:"package_path"` // 包路径
-	Method      string       `json:"method"`       // HTTP方法 (GET, POST, PUT, DELETE等)
-	Path        string       `json:"path"`         // 路由路径
-	Handler     string       `json:"handler"`      // 处理函数名称
-	Request     RequestInfo  `json:"request"`      // 请求信息
-	Response    ResponseInfo `json:"response"`     // 响应信息
-	
+	PackageName      string `json:"package_name"`       // 包名
+	PackagePath      string `json:"package_path"`       // 包路径
+	Method           string `json:"method"`             // HTTP方法 (GET, POST, PUT, DELETE等)
+	Path             string `json:"path"`               // 路由路径
+	Handler          string `json:"handler"`            // 处理函数名称
+	HandlerStartLine int    `json:"handler_start_line"` // 处理函数开始行号
+	HandlerEndLine   int    `json:"handler_end_line"`   // 处理函数结束行号
+
 	// 集成func_body解析结果
-	RequestParams []RequestParamInfo `json:"request_params,omitempty"` // 详细请求参数信息（来自func_body解析）
-	ResponseSchema *APISchema        `json:"response_schema,omitempty"` // 详细响应结构信息（来自func_body解析）
+	RequestParams  []RequestParamInfo `json:"request_params,omitempty"`  // 详细请求参数信息（来自func_body解析）
+	ResponseSchema *APISchema         `json:"response_schema,omitempty"` // 详细响应结构信息（来自func_body解析）
 }
 
 // RequestInfo 代表API请求的信息

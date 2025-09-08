@@ -23,7 +23,7 @@ func main() {
 
 	fmt.Printf("🔍 开始解析项目: %s\n", projectDir)
 
-	analyzer, err := helper.NewGinHandlerAnalyzer(projectDir)
+	analyzer, err := helper.NewIrisHandlerAnalyzer(projectDir)
 	if err != nil {
 		log.Fatalf("❌ 初始化分析器失败: %v", err)
 	}

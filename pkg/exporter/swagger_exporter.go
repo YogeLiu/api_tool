@@ -94,12 +94,13 @@ type SwaggerDoc struct {
 
 // SwaggerExporter Swagger格式导出器
 type SwaggerExporter struct {
-	projectName string
-	version     string
-	baseURL     string
-	outputDir   string
-	successOnly bool
-	schemas     map[string]interface{} // 收集的schema定义
+	projectName  string
+	version      string
+	baseURL      string
+	outputDir    string
+	successOnly  bool
+	schemas      map[string]interface{} // 收集的schema定义
+	commonPrefix []string               // 所有路由的共同前缀
 }
 
 // NewSwaggerExporter 创建Swagger导出器
@@ -111,12 +112,13 @@ func NewSwaggerExporter(projectName, version, baseURL, outputDir string, success
 		baseURL = "http://localhost:8080"
 	}
 	return &SwaggerExporter{
-		projectName: projectName,
-		version:     version,
-		baseURL:     baseURL,
-		outputDir:   outputDir,
-		successOnly: successOnly,
-		schemas:     make(map[string]interface{}),
+		projectName:  projectName,
+		version:      version,
+		baseURL:      baseURL,
+		outputDir:    outputDir,
+		successOnly:  successOnly,
+		schemas:      make(map[string]interface{}),
+		commonPrefix: nil,
 	}
 }
 
@@ -216,6 +218,9 @@ func (e *SwaggerExporter) convertToSwaggerDoc(apiInfo *models.APIInfo) *SwaggerD
 
 // createTags 创建标签
 func (e *SwaggerExporter) createTags(routes []models.RouteInfo) []SwaggerTag {
+	// 首先计算所有路由的共同前缀
+	e.commonPrefix = e.findCommonPrefix(routes)
+
 	tagMap := make(map[string][]string) // tagName -> 对应的路径列表
 	var tags []SwaggerTag
 
@@ -243,6 +248,94 @@ func (e *SwaggerExporter) createTags(routes []models.RouteInfo) []SwaggerTag {
 	return tags
 }
 
+// findCommonPrefix 找出所有路由的共同前缀
+func (e *SwaggerExporter) findCommonPrefix(routes []models.RouteInfo) []string {
+	if len(routes) == 0 {
+		return nil
+	}
+
+	// 获取第一个路由的路径作为基准
+	firstPath := strings.TrimPrefix(routes[0].Path, "/")
+	if firstPath == "" {
+		return nil
+	}
+
+	commonParts := strings.Split(firstPath, "/")
+
+	// 与其他路由比较，找出共同前缀
+	for _, route := range routes[1:] {
+		path := strings.TrimPrefix(route.Path, "/")
+		if path == "" {
+			return nil
+		}
+
+		parts := strings.Split(path, "/")
+
+		// 比较并更新共同前缀
+		minLen := len(commonParts)
+		if len(parts) < minLen {
+			minLen = len(parts)
+		}
+
+		newCommonParts := make([]string, 0)
+		for i := 0; i < minLen; i++ {
+			if commonParts[i] == parts[i] {
+				newCommonParts = append(newCommonParts, commonParts[i])
+			} else {
+				break
+			}
+		}
+		commonParts = newCommonParts
+
+		// 如果没有共同前缀，直接返回
+		if len(commonParts) == 0 {
+			return nil
+		}
+	}
+
+	return commonParts
+}
+
+// isVersionNumber 判断是否为版本号
+func (e *SwaggerExporter) isVersionNumber(part string) bool {
+	// 检查是否匹配 v1, v2, v3 等格式
+	if len(part) >= 2 && strings.ToLower(part[0:1]) == "v" {
+		// 检查后面是否为数字
+		for _, char := range part[1:] {
+			if char < '0' || char > '9' {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// toCamelCase 将字符串转换为驼峰格式（首字母大写）
+func (e *SwaggerExporter) toCamelCase(s string) string {
+	if s == "" {
+		return "Default"
+	}
+
+	// 处理下划线分隔的情况，如 health_group -> HealthGroup
+	parts := strings.Split(s, "_")
+	var result strings.Builder
+
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		// 首字母大写，其余小写
+		result.WriteString(strings.ToUpper(part[:1]) + strings.ToLower(part[1:]))
+	}
+
+	if result.Len() == 0 {
+		return "Default"
+	}
+
+	return result.String()
+}
+
 // extractTagFromPath 从路径中提取标签名称
 func (e *SwaggerExporter) extractTagFromPath(path string) string {
 	// 去除开头的斜杠
@@ -254,42 +347,44 @@ func (e *SwaggerExporter) extractTagFromPath(path string) string {
 		return "Default"
 	}
 
-	// 根据路径模式进行分组
-	switch {
-	case strings.HasPrefix(path, "internal/test"):
-		return "Test"
-	case strings.HasPrefix(path, "internal/"):
-		if len(parts) >= 2 {
-			return "Internal-" + e.capitalize(parts[1])
+	var categoryIndex int
+
+	// 如果有共同前缀，跳过共同前缀部分
+	if len(e.commonPrefix) > 0 {
+		// 检查当前路径是否包含共同前缀
+		hasCommonPrefix := len(parts) >= len(e.commonPrefix)
+		for i := 0; i < len(e.commonPrefix) && hasCommonPrefix; i++ {
+			if parts[i] != e.commonPrefix[i] {
+				hasCommonPrefix = false
+				break
+			}
 		}
-		return "Internal"
-	case strings.HasPrefix(path, "equity/member"):
-		return "Member"
-	case strings.HasPrefix(path, "equity/order"):
-		return "Order"
-	case strings.HasPrefix(path, "equity/free"):
-		return "Free"
-	case strings.HasPrefix(path, "equity/pay"):
-		return "Payment"
-	case strings.HasPrefix(path, "equity/address"):
-		return "Address"
-	case strings.HasPrefix(path, "equity/entrust"):
-		return "Entrust"
-	case strings.HasPrefix(path, "equity/right"):
-		return "Rights"
-	case strings.HasPrefix(path, "equity/"):
-		// 其他 equity 下的接口，按第二段分组
-		if len(parts) >= 2 {
-			return "Equity-" + e.capitalize(parts[1])
+
+		if hasCommonPrefix {
+			// 跳过共同前缀，如果共同前缀的下一个是版本号，再跳过一个
+			categoryIndex = len(e.commonPrefix)
+			if categoryIndex < len(parts) && e.isVersionNumber(parts[categoryIndex]) {
+				categoryIndex++
+			}
 		}
-		return "Equity"
-	default:
-		// 默认按第一段分组
-		if len(parts) >= 1 {
-			return e.capitalize(parts[0])
+	}
+
+	// 如果没有共同前缀，从第一个开始
+	if categoryIndex == 0 {
+		// 如果第一个是版本号，使用第二个
+		if len(parts) > 1 && e.isVersionNumber(parts[0]) {
+			categoryIndex = 1
 		}
+	}
+
+	// 确保索引有效
+	if categoryIndex >= len(parts) {
 		return "Default"
 	}
+
+	// 获取分类名称并转换为驼峰格式
+	categoryName := parts[categoryIndex]
+	return e.toCamelCase(categoryName)
 }
 
 // generateTagDescription 生成标签描述
@@ -318,26 +413,6 @@ func (e *SwaggerExporter) generateTagDescription(tagName string, paths []string)
 		}
 		return fmt.Sprintf("%s模块相关接口", tagName)
 	}
-}
-
-// capitalize 首字母大写
-func (e *SwaggerExporter) capitalize(s string) string {
-	if len(s) == 0 {
-		return s
-	}
-	// 移除特殊字符，只保留字母数字
-	cleaned := strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
-			return r
-		}
-		return -1
-	}, s)
-
-	if len(cleaned) == 0 {
-		return "Default"
-	}
-
-	return strings.ToUpper(cleaned[:1]) + strings.ToLower(cleaned[1:])
 }
 
 // convertPaths 转换路径

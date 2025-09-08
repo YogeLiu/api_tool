@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/YogeLiu/api-tool/helper"
 	"github.com/YogeLiu/api-tool/pkg/analyzer"
 	"github.com/YogeLiu/api-tool/pkg/exporter"
 	"github.com/YogeLiu/api-tool/pkg/extractor"
@@ -51,17 +52,20 @@ func main() {
 
 	log.Println("2. 选择框架提取器:", *framework)
 	var ext extractor.Extractor
+	var responseParsingEngine helper.ResponseEngine
 	switch *framework {
 	case "gin":
 		ext = extractor.NewGinExtractor(proj)
+		responseParsingEngine = helper.NewResponseParsingEngine(proj.Packages)
 	case "iris":
 		ext = extractor.NewIrisExtractor(proj)
+		responseParsingEngine = helper.NewIrisResponseParsingEngine(proj.Packages)
 	default:
 		log.Fatalf("不支持的框架: %s", *framework)
 	}
 
 	log.Println("3. 运行核心分析器...")
-	coreAnalyzer := analyzer.NewAnalyzer(*projectPath, proj, ext)
+	coreAnalyzer := analyzer.NewAnalyzer(*projectPath, proj, responseParsingEngine, ext)
 	apiInfo, err := coreAnalyzer.Analyze()
 	if err != nil {
 		log.Fatalf("核心分析失败: %v", err)

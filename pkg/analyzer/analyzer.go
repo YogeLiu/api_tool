@@ -24,7 +24,7 @@ type Analyzer struct {
 	extractor             extractor.Extractor
 	routeCache            map[string]bool                        // 路由去重映射
 	routerGroupFunctions  map[string]*models.RouterGroupFunction // 路由分组函数索引
-	responseParsingEngine *helper.ResponseParsingEngine
+	responseParsingEngine helper.ResponseEngine
 }
 
 // RouteContext 路由解析上下文
@@ -44,10 +44,7 @@ type HandlerInfo struct {
 }
 
 // NewAnalyzer 创建新的分析器实例
-func NewAnalyzer(dir string, proj *parser.Project, ext extractor.Extractor) *Analyzer {
-	// 使用现有的包信息创建响应解析引擎，避免重复加载包
-	responseParsingEngine := helper.NewResponseParsingEngine(proj.Packages)
-
+func NewAnalyzer(dir string, proj *parser.Project, responseParsingEngine helper.ResponseEngine, ext extractor.Extractor) *Analyzer {
 	return &Analyzer{
 		project:               proj,
 		extractor:             ext,
@@ -330,8 +327,8 @@ func (a *Analyzer) handleHTTPMethodCall(callExpr *ast.CallExpr, context *RouteCo
 		// 分析Handler的请求和响应参数
 		if handlerAnalysisResult := a.analyzeHandlerWithResponseEngine(handlerInfo); handlerAnalysisResult != nil {
 			// 将分析结果集成到路由信息中
-			routeInfo.RequestParams = a.convertToModelRequestParams(handlerAnalysisResult.RequestParams)
-			routeInfo.ResponseSchema = a.convertToModelAPISchema(handlerAnalysisResult.Response)
+			routeInfo.RequestParams = a.convertToModelRequestParamsFromCommon(handlerAnalysisResult.RequestParams)
+			routeInfo.ResponseSchema = a.convertToModelAPISchemaFromCommon(handlerAnalysisResult.Response)
 			log.Printf("[DEBUG] 成功集成Handler参数分析结果: 请求参数%d个\n", len(handlerAnalysisResult.RequestParams))
 		}
 	}
@@ -419,6 +416,8 @@ func (a *Analyzer) copyVisitedFuncs(original map[string]bool) map[string]bool {
 }
 
 func (a *Analyzer) findGroupResultObject(callExpr *ast.CallExpr, pkg *packages.Package) types.Object {
+	log.Printf("[DEBUG] findGroupResultObject: 寻找分组调用的结果对象\n")
+
 	// 在包的语法树中查找赋值语句
 	for _, file := range pkg.Syntax {
 		var foundObj types.Object
@@ -429,12 +428,31 @@ func (a *Analyzer) findGroupResultObject(callExpr *ast.CallExpr, pkg *packages.P
 
 			if assignStmt, ok := node.(*ast.AssignStmt); ok {
 				for i, rhs := range assignStmt.Rhs {
+					// 处理直接赋值: scotty := api.Party(...)
 					if rhs == callExpr {
+						log.Printf("[DEBUG] 找到直接赋值语句\n")
 						if i < len(assignStmt.Lhs) {
 							if ident, ok := assignStmt.Lhs[i].(*ast.Ident); ok {
 								if obj := pkg.TypesInfo.ObjectOf(ident); obj != nil {
+									log.Printf("[DEBUG] 找到分组结果对象: %s\n", obj.Name())
 									foundObj = obj
 									return false
+								}
+							}
+						}
+					}
+
+					// 处理链式调用: scotty := api.Party(...).AllowMethods(...)
+					if callChain, ok := rhs.(*ast.CallExpr); ok {
+						if a.isCallExprInChain(callChain, callExpr) {
+							log.Printf("[DEBUG] 找到链式调用中的分组调用\n")
+							if i < len(assignStmt.Lhs) {
+								if ident, ok := assignStmt.Lhs[i].(*ast.Ident); ok {
+									if obj := pkg.TypesInfo.ObjectOf(ident); obj != nil {
+										log.Printf("[DEBUG] 找到链式调用结果对象: %s\n", obj.Name())
+										foundObj = obj
+										return false
+									}
 								}
 							}
 						}
@@ -465,7 +483,25 @@ func (a *Analyzer) findGroupResultObject(callExpr *ast.CallExpr, pkg *packages.P
 			return foundObj
 		}
 	}
+
+	log.Printf("[DEBUG] findGroupResultObject: 未找到分组结果对象\n")
 	return nil
+}
+
+// isCallExprInChain 检查 targetCall 是否在 chainCall 的调用链中
+func (a *Analyzer) isCallExprInChain(chainCall, targetCall *ast.CallExpr) bool {
+	if chainCall == targetCall {
+		return true
+	}
+
+	// 检查链式调用中的基础调用
+	if selExpr, ok := chainCall.Fun.(*ast.SelectorExpr); ok {
+		if baseCall, ok := selExpr.X.(*ast.CallExpr); ok {
+			return a.isCallExprInChain(baseCall, targetCall)
+		}
+	}
+
+	return false
 }
 
 func (a *Analyzer) combinePaths(basePath, segment string) string {
@@ -689,8 +725,8 @@ func (a *Analyzer) findFunctionDeclarationInPackage(pkg *packages.Package, funct
 	return nil
 }
 
-// analyzeHandlerWithFuncBody 使用funcBodyEngine分析Handler的请求和响应参数
-func (a *Analyzer) analyzeHandlerWithResponseEngine(handlerInfo *HandlerInfo) *helper.HandlerAnalysisResult {
+// analyzeHandlerWithResponseEngine 使用responseEngine分析Handler的请求和响应参数
+func (a *Analyzer) analyzeHandlerWithResponseEngine(handlerInfo *HandlerInfo) *helper.CommonHandlerAnalysisResult {
 	if handlerInfo == nil || handlerInfo.FuncDecl == nil || handlerInfo.Package == nil {
 		log.Printf("[DEBUG] analyzeHandlerWithResponseEngine: 参数检查失败 - handlerInfo: %v, FuncDecl: %v, Package: %v\n",
 			handlerInfo != nil, handlerInfo != nil && handlerInfo.FuncDecl != nil, handlerInfo != nil && handlerInfo.Package != nil)
@@ -701,9 +737,32 @@ func (a *Analyzer) analyzeHandlerWithResponseEngine(handlerInfo *HandlerInfo) *h
 	log.Printf("[DEBUG] analyzeHandlerWithResponseEngine: Package路径: %s, Package名称: %s\n", handlerInfo.Package.PkgPath, handlerInfo.Package.Name)
 	log.Printf("[DEBUG] analyzeHandlerWithResponseEngine: TypesInfo为空: %v\n", handlerInfo.Package.TypesInfo == nil)
 
-	// 使用responseParsingEngine直接分析Handler
-	result := a.responseParsingEngine.AnalyzeHandlerComplete(handlerInfo.FuncDecl, handlerInfo.Package)
+	// 临时：直接调用原始的 Iris 方法
+	if irisEngine, ok := a.responseParsingEngine.(*helper.IrisResponseParsingEngine); ok {
+		irisResult := irisEngine.AnalyzeIrisHandlerComplete(handlerInfo.FuncDecl, handlerInfo.Package)
+		if irisResult != nil {
+			// 转换为通用格式
+			result := &helper.CommonHandlerAnalysisResult{
+				PackageName:   irisResult.PackageName,
+				PackagePath:   irisResult.PackagePath,
+				FunctionName:  irisResult.HandlerName,
+				RequestParams: a.convertIrisRequestParamsLocal(irisResult.RequestParams),
+				Response:      a.convertIrisAPISchemaLocal(irisResult.Response),
+			}
+			log.Printf("[DEBUG] 直接调用 Iris responseParsingEngine分析成功: 请求参数%d个, 响应类型%s\n",
+				len(result.RequestParams),
+				func() string {
+					if result.Response != nil {
+						return result.Response.Type
+					}
+					return "nil"
+				}())
+			return result
+		}
+	}
 
+	// 使用通用接口分析Handler
+	result := a.responseParsingEngine.AnalyzeHandler(handlerInfo.FuncDecl, handlerInfo.Package)
 	if result != nil {
 		log.Printf("[DEBUG] responseParsingEngine分析成功: 请求参数%d个, 响应类型%s\n",
 			len(result.RequestParams),
@@ -714,10 +773,10 @@ func (a *Analyzer) analyzeHandlerWithResponseEngine(handlerInfo *HandlerInfo) *h
 				return "nil"
 			}())
 		return result
-	} else {
-		log.Printf("[DEBUG] responseParsingEngine分析失败\n")
-		return nil
 	}
+
+	log.Printf("[DEBUG] responseParsingEngine分析失败\n")
+	return nil
 }
 
 // convertToModelRequestParams 转换helper.RequestParamInfo到models.RequestParamInfo
@@ -983,4 +1042,93 @@ func (a *Analyzer) importMatchesAlias(importedPkg *packages.Package, aliasName, 
 	}
 
 	return false
+}
+
+// convertToModelRequestParamsFromCommon 转换helper.CommonRequestParamInfo到models.RequestParamInfo
+func (a *Analyzer) convertToModelRequestParamsFromCommon(commonParams []helper.CommonRequestParamInfo) []models.RequestParamInfo {
+	var modelParams []models.RequestParamInfo
+	for _, commonParam := range commonParams {
+		modelParam := models.RequestParamInfo{
+			ParamType:   commonParam.Type,
+			ParamName:   commonParam.Name,
+			IsRequired:  commonParam.Required,
+			Source:      commonParam.Source,
+			ParamSchema: a.convertToModelAPISchemaFromCommon(commonParam.Schema),
+		}
+		modelParams = append(modelParams, modelParam)
+	}
+	return modelParams
+}
+
+// convertToModelAPISchemaFromCommon 转换helper.CommonAPISchema到models.APISchema
+func (a *Analyzer) convertToModelAPISchemaFromCommon(commonSchema *helper.CommonAPISchema) *models.APISchema {
+	if commonSchema == nil {
+		return nil
+	}
+
+	modelSchema := &models.APISchema{
+		Type:        commonSchema.Type,
+		Description: commonSchema.Description,
+		JSONTag:     commonSchema.JSONTag,
+	}
+
+	// 转换Properties
+	if commonSchema.Properties != nil {
+		modelSchema.Properties = make(map[string]*models.APISchema)
+		for key, value := range commonSchema.Properties {
+			modelSchema.Properties[key] = a.convertToModelAPISchemaFromCommon(value)
+		}
+	}
+
+	// 转换Items
+	if commonSchema.Items != nil {
+		modelSchema.Items = a.convertToModelAPISchemaFromCommon(commonSchema.Items)
+	}
+
+	return modelSchema
+}
+
+// convertIrisRequestParamsLocal 本地转换Iris请求参数
+func (a *Analyzer) convertIrisRequestParamsLocal(irisParams []helper.IrisRequestParamInfo) []helper.CommonRequestParamInfo {
+	var commonParams []helper.CommonRequestParamInfo
+	for _, irisParam := range irisParams {
+		commonParam := helper.CommonRequestParamInfo{
+			Name:        irisParam.ParamName,
+			Type:        irisParam.ParamType,
+			Source:      irisParam.Source,
+			Required:    irisParam.IsRequired,
+			Description: "",
+			Schema:      a.convertIrisAPISchemaLocal(irisParam.ParamSchema),
+		}
+		commonParams = append(commonParams, commonParam)
+	}
+	return commonParams
+}
+
+// convertIrisAPISchemaLocal 本地转换Iris API Schema
+func (a *Analyzer) convertIrisAPISchemaLocal(irisSchema *helper.APISchema) *helper.CommonAPISchema {
+	if irisSchema == nil {
+		return nil
+	}
+
+	commonSchema := &helper.CommonAPISchema{
+		Type:        irisSchema.Type,
+		JSONTag:     irisSchema.JSONTag,
+		Description: irisSchema.Description,
+	}
+
+	// 转换Properties
+	if irisSchema.Properties != nil {
+		commonSchema.Properties = make(map[string]*helper.CommonAPISchema)
+		for key, prop := range irisSchema.Properties {
+			commonSchema.Properties[key] = a.convertIrisAPISchemaLocal(prop)
+		}
+	}
+
+	// 转换Items
+	if irisSchema.Items != nil {
+		commonSchema.Items = a.convertIrisAPISchemaLocal(irisSchema.Items)
+	}
+
+	return commonSchema
 }

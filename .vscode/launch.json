@@ -15,14 +15,10 @@
             "program": "${workspaceFolder}/cmd/my-tool/main.go",
             "args": [
                 "-path",
-                "/Users/yoge/dev/go/src/go_equity_package",
+                "/Users/yoge/dev/go/src/scotty",
                 "-framework",
-                "gin"
+                "iris"
             ]
-            // "args": ["-path", "/Users/yoge/dev/go/src/code.qschou.com/insur_arc/policy_admin", "-framework", "gin"]
-            // "args": ["-path", "/Users/yoge/dev/go/src/go_equity_package", "-framework", "gin"]
-            // "program": "${workspaceFolder}/qwen_main.go",
-            // "args": ["/Users/yoge/dev/go/src/go_equity_package"]
         }
     ]
 }

@@ -1745,6 +1745,24 @@ func (a *GinHandlerAnalyzer) isGinHandler(funcDecl *ast.FuncDecl, info *types.In
 }
 
 // 完整分析Handler（包含请求参数和响应）
+// AnalyzeHandler 实现 ResponseEngine 接口
+func (engine *ResponseParsingEngine) AnalyzeHandler(handlerDecl *ast.FuncDecl, pkg *packages.Package) *CommonHandlerAnalysisResult {
+	// 调用原有的分析方法
+	result := engine.AnalyzeHandlerComplete(handlerDecl, pkg)
+	if result == nil {
+		return nil
+	}
+
+	// 转换为通用格式
+	return &CommonHandlerAnalysisResult{
+		PackageName:   result.PackageName,
+		PackagePath:   result.PackagePath,
+		FunctionName:  result.HandlerName,
+		RequestParams: engine.convertRequestParams(result.RequestParams),
+		Response:      engine.convertAPISchema(result.Response),
+	}
+}
+
 func (engine *ResponseParsingEngine) AnalyzeHandlerComplete(handlerDecl *ast.FuncDecl, pkg *packages.Package) *HandlerAnalysisResult {
 	result := &HandlerAnalysisResult{
 		PackageName: pkg.Name,
@@ -1763,6 +1781,51 @@ func (engine *ResponseParsingEngine) AnalyzeHandlerComplete(handlerDecl *ast.Fun
 	}
 
 	return result
+}
+
+// convertRequestParams 转换请求参数为通用格式
+func (engine *ResponseParsingEngine) convertRequestParams(params []RequestParamInfo) []CommonRequestParamInfo {
+	var commonParams []CommonRequestParamInfo
+	for _, param := range params {
+		commonParam := CommonRequestParamInfo{
+			Name:        param.ParamName,
+			Type:        param.ParamType,
+			Source:      param.Source,
+			Required:    param.IsRequired,
+			Description: "", // gin版本没有description字段
+			Schema:      engine.convertAPISchema(param.ParamSchema),
+		}
+		commonParams = append(commonParams, commonParam)
+	}
+	return commonParams
+}
+
+// convertAPISchema 转换API Schema为通用格式
+func (engine *ResponseParsingEngine) convertAPISchema(schema *APISchema) *CommonAPISchema {
+	if schema == nil {
+		return nil
+	}
+
+	commonSchema := &CommonAPISchema{
+		Type:        schema.Type,
+		JSONTag:     schema.JSONTag,
+		Description: schema.Description,
+	}
+
+	// 转换Properties
+	if schema.Properties != nil {
+		commonSchema.Properties = make(map[string]*CommonAPISchema)
+		for key, prop := range schema.Properties {
+			commonSchema.Properties[key] = engine.convertAPISchema(prop)
+		}
+	}
+
+	// 转换Items
+	if schema.Items != nil {
+		commonSchema.Items = engine.convertAPISchema(schema.Items)
+	}
+
+	return commonSchema
 }
 
 // 统一分析响应表达式（支持c.JSON第二个参数和响应封装函数调用）

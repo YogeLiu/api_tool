@@ -604,8 +604,33 @@ func (e *SwaggerExporter) convertResponses(responseSchema *models.APISchema) map
 
 // extractSuccessDataSchema 提取成功响应的data字段
 func (e *SwaggerExporter) extractSuccessDataSchema(responseSchema *models.APISchema) map[string]interface{} {
-	if responseSchema != nil && responseSchema.Type == "object" && responseSchema.Properties != nil {
-		if dataField, exists := responseSchema.Properties["data"]; exists {
+	if responseSchema != nil && responseSchema.Properties != nil {
+		// 寻找data字段，支持字段名或JSON tag
+		var dataField *models.APISchema
+
+		// 1. 直接查找 "data" 字段
+		if field, exists := responseSchema.Properties["data"]; exists {
+			dataField = field
+		}
+
+		// 2. 查找 "Data" 字段
+		if dataField == nil {
+			if field, exists := responseSchema.Properties["Data"]; exists {
+				dataField = field
+			}
+		}
+
+		// 3. 查找任何json_tag为"data"的字段
+		if dataField == nil {
+			for _, field := range responseSchema.Properties {
+				if field.JSONTag == "data" {
+					dataField = field
+					break
+				}
+			}
+		}
+
+		if dataField != nil {
 			// 创建包含data字段的成功响应
 			return map[string]interface{}{
 				"type": "object",

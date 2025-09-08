@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
@@ -134,25 +135,9 @@ func (engine *IrisResponseParsingEngine) analyzeResponseWrapperCandidate(funcDec
 
 	// 1. 查找iris.Context参数（可能不是第一个参数）
 	irisContextIdx := engine.findIrisContextParameter(funcDecl, pkg)
-
-	// 2. 如果没有iris.Context参数，检查是否内部调用了ctx.JSON
-	hasInternalJSONCall := false
 	if irisContextIdx == -1 {
-		// 检查函数体内是否有ctx.JSON调用
-		jsonCall := engine.findJSONCallInFunction(funcDecl, pkg)
-		if jsonCall != nil {
-			hasInternalJSONCall = true
-		}
-	}
-
-	// 如果既没有iris.Context参数，也没有内部JSON调用，检查是否为响应构造函数
-	if irisContextIdx == -1 && !hasInternalJSONCall {
-		// 检查是否为响应构造函数（返回类型包含Response且有数据参数）
-		if engine.isResponseConstructorFunction(funcDecl, pkg) {
-			log.Printf("[DEBUG] 🎯 发现响应构造函数: %s\n", funcDecl.Name.Name)
-		} else {
-			return nil
-		}
+		// 仅将包含 iris.Context 的函数视为响应封装函数（与 gin 行为对齐）
+		return nil
 	}
 
 	// 3. 确保不是Handler (Handler只有一个iris.Context参数)
@@ -161,63 +146,17 @@ func (engine *IrisResponseParsingEngine) analyzeResponseWrapperCandidate(funcDec
 		return nil
 	}
 
-	// 4. 查找函数体内的ctx.JSON调用
+	// 4. 查找函数体内的ctx.JSON调用（必须）
 	jsonCallSite := engine.findJSONCallInFunction(funcDecl, pkg)
+	if jsonCallSite == nil {
+		return nil
+	}
 
 	// 5. 获取返回类型
 	returnType := engine.getReturnStructType(funcDecl, pkg)
 
-    // 6. 查找数据参数索引
-    dataParamIdx := engine.findDataParameter(funcDecl, irisContextIdx)
-
-    // 针对“响应构造函数”的特殊处理：
-    // - 无 iris.Context 参数
-    // - 无内部 ctx.JSON 调用
-    // - 函数名或返回类型包含 Response
-    // 这里进一步推断 Data 参数在调用实参中的索引。
-    if irisContextIdx == -1 && !hasInternalJSONCall && engine.isResponseConstructorFunction(funcDecl, pkg) {
-        // 情况 A：固定参数风格，例如 Response(code, msg, data)
-        if strings.ToLower(funcDecl.Name.Name) == "response" {
-            dataParamIdx = 2
-            log.Printf("[DEBUG] 🎯 Response构造函数固定参数推断，数据参数索引: %d\n", dataParamIdx)
-        } else {
-            // 情况 B：变长参数风格，例如 ResponseWithRequestId(requestId string, arg ...interface{})
-            // 社区/项目常见约定：arg[0]=code, arg[1]=msg, arg[2]=data, arg[3]=next
-            // 因此在调用处，data 的索引 = 固定参数数量 + 2
-
-            // 统计变长参数前的固定参数数量
-            fixedParamCount := 0
-            hasVariadic := false
-            if funcDecl.Type.Params != nil && len(funcDecl.Type.Params.List) > 0 {
-                lastIdx := len(funcDecl.Type.Params.List) - 1
-                for i, p := range funcDecl.Type.Params.List {
-                    // 检查是否为变长参数
-                    if i == lastIdx {
-                        if _, ok := p.Type.(*ast.Ellipsis); ok {
-                            hasVariadic = true
-                            // 固定参数不包含最后一个变长参数
-                            break
-                        }
-                    }
-                    // 计算该列表中的参数个数（a,b int 这种合并声明）
-                    if len(p.Names) > 0 {
-                        fixedParamCount += len(p.Names)
-                    } else {
-                        // 处理无参数名的情况（极少见），按1个计
-                        fixedParamCount += 1
-                    }
-                }
-            }
-
-            if hasVariadic {
-                dataParamIdx = fixedParamCount + 2
-                log.Printf("[DEBUG] 🎯 变长响应构造函数推断，固定参数=%d，数据参数索引=%d\n", fixedParamCount, dataParamIdx)
-            } else {
-                // 非变长但又不是函数名为 Response 的场景，尽量保留原始推断结果
-                log.Printf("[DEBUG] ℹ️ 非变长响应构造函数，沿用默认数据参数索引: %d\n", dataParamIdx)
-            }
-        }
-    }
+	// 6. 查找数据参数索引（第一个非Context参数）
+	dataParamIdx := engine.findDataParameter(funcDecl, irisContextIdx)
 
 	// 7. 分析参数→字段映射
 	paramToFieldMap := engine.analyzeParameterFieldMapping(funcDecl, pkg)
@@ -252,33 +191,6 @@ func (engine *IrisResponseParsingEngine) findDataFieldKey(properties map[string]
 	}
 
 	return ""
-}
-
-// isResponseConstructorFunction 检查是否为响应构造函数
-func (engine *IrisResponseParsingEngine) isResponseConstructorFunction(funcDecl *ast.FuncDecl, pkg *packages.Package) bool {
-	// 检查函数名是否包含Response相关关键词
-	funcName := strings.ToLower(funcDecl.Name.Name)
-	if !strings.Contains(funcName, "response") {
-		return false
-	}
-
-	// 检查是否有返回值
-	if funcDecl.Type.Results == nil || len(funcDecl.Type.Results.List) == 0 {
-		return false
-	}
-
-	// 检查返回类型是否为Response相关结构体
-	for _, result := range funcDecl.Type.Results.List {
-		if resultType := pkg.TypesInfo.TypeOf(result.Type); resultType != nil {
-			resultTypeStr := strings.ToLower(resultType.String())
-			if strings.Contains(resultTypeStr, "response") {
-				log.Printf("[DEBUG] 🎯 响应构造函数返回类型: %s\n", resultType.String())
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 // findIrisContextParameter 查找iris.Context参数索引
@@ -378,6 +290,24 @@ func (engine *IrisResponseParsingEngine) isIrisJSONCall(callExpr *ast.CallExpr, 
 // ====================== Handler分析 ======================
 
 // AnalyzeIrisHandlerComplete 完整分析Iris Handler
+// AnalyzeHandler 实现 ResponseEngine 接口
+func (engine *IrisResponseParsingEngine) AnalyzeHandler(handlerDecl *ast.FuncDecl, pkg *packages.Package) *CommonHandlerAnalysisResult {
+	// 调用原有的分析方法
+	result := engine.AnalyzeIrisHandlerComplete(handlerDecl, pkg)
+	if result == nil {
+		return nil
+	}
+
+	// 转换为通用格式
+	return &CommonHandlerAnalysisResult{
+		PackageName:   result.PackageName,
+		PackagePath:   result.PackagePath,
+		FunctionName:  result.HandlerName,
+		RequestParams: engine.convertIrisRequestParams(result.RequestParams),
+		Response:      engine.convertIrisAPISchema(result.Response),
+	}
+}
+
 func (engine *IrisResponseParsingEngine) AnalyzeIrisHandlerComplete(handlerDecl *ast.FuncDecl, pkg *packages.Package) *IrisHandlerAnalysisResult {
 	result := &IrisHandlerAnalysisResult{
 		PackageName: pkg.Name,
@@ -389,13 +319,58 @@ func (engine *IrisResponseParsingEngine) AnalyzeIrisHandlerComplete(handlerDecl 
 	paramAnalyzer := NewIrisRequestParamAnalyzer(engine, pkg)
 	result.RequestParams = paramAnalyzer.AnalyzeHandlerParams(handlerDecl)
 
-	// 分析响应
+	// 分析响应（统一：ctx.JSON参数或自定义封装函数，递归解析）
 	responseExpr := engine.findLastResponseExpression(handlerDecl, pkg)
 	if responseExpr != nil {
-		result.Response = engine.analyzeResponseExpression(responseExpr, pkg)
+		result.Response = engine.analyzeUnifiedResponseExpression(responseExpr, pkg)
 	}
 
 	return result
+}
+
+// convertIrisRequestParams 转换Iris请求参数为通用格式
+func (engine *IrisResponseParsingEngine) convertIrisRequestParams(params []IrisRequestParamInfo) []CommonRequestParamInfo {
+	var commonParams []CommonRequestParamInfo
+	for _, param := range params {
+		commonParam := CommonRequestParamInfo{
+			Name:        param.ParamName,
+			Type:        param.ParamType,
+			Source:      param.Source,
+			Required:    param.IsRequired,
+			Description: "", // 可以从param中获取更多描述信息
+			Schema:      engine.convertIrisAPISchema(param.ParamSchema),
+		}
+		commonParams = append(commonParams, commonParam)
+	}
+	return commonParams
+}
+
+// convertIrisAPISchema 转换Iris API Schema为通用格式
+func (engine *IrisResponseParsingEngine) convertIrisAPISchema(schema *APISchema) *CommonAPISchema {
+	if schema == nil {
+		return nil
+	}
+
+	commonSchema := &CommonAPISchema{
+		Type:        schema.Type,
+		JSONTag:     schema.JSONTag,
+		Description: schema.Description,
+	}
+
+	// 转换Properties
+	if schema.Properties != nil {
+		commonSchema.Properties = make(map[string]*CommonAPISchema)
+		for key, prop := range schema.Properties {
+			commonSchema.Properties[key] = engine.convertIrisAPISchema(prop)
+		}
+	}
+
+	// 转换Items
+	if schema.Items != nil {
+		commonSchema.Items = engine.convertIrisAPISchema(schema.Items)
+	}
+
+	return commonSchema
 }
 
 // findLastResponseExpression 查找最后一个响应表达式
@@ -463,6 +438,335 @@ func (engine *IrisResponseParsingEngine) analyzeResponseExpression(expr ast.Expr
 	}
 }
 
+// analyzeUnifiedResponseExpression 统一分析响应表达式（支持ctx.JSON参数和响应封装函数调用，递归解析）
+func (engine *IrisResponseParsingEngine) analyzeUnifiedResponseExpression(responseExpr ast.Expr, pkg *packages.Package) *APISchema {
+	switch expr := responseExpr.(type) {
+	case *ast.CallExpr:
+		// 响应封装函数或普通函数调用
+		return engine.resolveFunctionCallRecursive(expr, pkg)
+	case *ast.CompositeLit:
+		return engine.resolveCompositeLiteral(expr, pkg)
+	case *ast.Ident:
+		return engine.resolveIdentifier(expr, pkg)
+	case *ast.SelectorExpr:
+		return engine.resolveSelectorExpr(expr, pkg)
+	default:
+		if exprType := pkg.TypesInfo.TypeOf(responseExpr); exprType != nil {
+			return engine.resolveType(exprType, engine.maxDepth)
+		}
+		return &APISchema{Type: "unknown", Description: fmt.Sprintf("unsupported expression type: %T", responseExpr)}
+	}
+}
+
+// resolveFunctionCallRecursive 递归解析函数调用
+func (engine *IrisResponseParsingEngine) resolveFunctionCallRecursive(callExpr *ast.CallExpr, pkg *packages.Package) *APISchema {
+	log.Printf("[DEBUG] Iris 递归解析函数调用\n")
+
+	// 1. 获取函数对象
+	funcObj := engine.getFunctionObject(callExpr, pkg)
+	if funcObj == nil {
+		log.Printf("[DEBUG] 无法获取函数对象，使用fallback解析\n")
+		return engine.resolveFallbackType(callExpr, pkg)
+	}
+
+	log.Printf("[DEBUG] 函数名: %s\n", funcObj.Name())
+
+	// 2. 检查是否为响应封装函数
+	if wrapper, ok := engine.globalMappings.ResponseWrappers[funcObj]; ok {
+		log.Printf("[DEBUG] 发现Iris响应封装函数，直接解析参数\n")
+		return engine.analyzeWrapperFunctionArgs(wrapper, callExpr.Args, pkg)
+	}
+
+	// 3. 普通函数：分析函数返回（并结合调用参数进行注入）
+	funcDecl := engine.findFunctionDeclaration(funcObj, pkg)
+	if funcDecl == nil {
+		log.Printf("[DEBUG] 无法找到函数声明，使用类型信息\n")
+		return engine.resolveFunctionByTypeInfo(callExpr, pkg)
+	}
+
+	return engine.analyzeFunctionReturnRecursive(funcDecl, callExpr.Args, pkg)
+}
+
+// analyzeFunctionReturnRecursive 递归分析函数返回语句，并尝试注入调用参数类型
+func (engine *IrisResponseParsingEngine) analyzeFunctionReturnRecursive(funcDecl *ast.FuncDecl, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
+	log.Printf("[DEBUG] 递归分析Iris函数 %s 的返回语句\n", funcDecl.Name.Name)
+
+	if funcDecl.Body == nil {
+		return &APISchema{Type: "unknown", Description: "no function body"}
+	}
+
+	var returnExpr ast.Expr
+	ast.Inspect(funcDecl.Body, func(node ast.Node) bool {
+		if retStmt, ok := node.(*ast.ReturnStmt); ok && len(retStmt.Results) > 0 {
+			returnExpr = retStmt.Results[0]
+			return false
+		}
+		return true
+	})
+
+	if returnExpr == nil {
+		return &APISchema{Type: "unknown", Description: "no return statement"}
+	}
+
+	return engine.resolveReturnExpressionWithArgs(returnExpr, funcDecl, callArgs, pkg)
+}
+
+// resolveReturnExpressionWithArgs 解析返回表达式，并结合调用参数做类型注入
+func (engine *IrisResponseParsingEngine) resolveReturnExpressionWithArgs(returnExpr ast.Expr, funcDecl *ast.FuncDecl, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
+	switch ret := returnExpr.(type) {
+	case *ast.CompositeLit:
+		return engine.resolveCompositeLiteralWithArgs(ret, funcDecl, callArgs, pkg)
+	case *ast.CallExpr:
+		return engine.resolveFunctionCallRecursive(ret, pkg)
+	case *ast.Ident:
+		// 变量返回，尝试从函数体中提取关键字段（如 Data）赋值来源
+		if schema := engine.resolveReturnedVariableWithArgs(ret, funcDecl, callArgs, pkg); schema != nil {
+			return schema
+		}
+		// 回退到标识符解析
+		return engine.resolveIdentifier(ret, pkg)
+	case *ast.UnaryExpr:
+		if ret.Op == token.AND {
+			if comp, ok := ret.X.(*ast.CompositeLit); ok {
+				return engine.resolveCompositeLiteralWithArgs(comp, funcDecl, callArgs, pkg)
+			}
+		}
+		exprType := pkg.TypesInfo.TypeOf(ret)
+		if exprType != nil {
+			return engine.resolveType(exprType, engine.maxDepth)
+		}
+		return &APISchema{Type: "unknown", Description: "unable to resolve unary return"}
+	default:
+		if t := pkg.TypesInfo.TypeOf(returnExpr); t != nil {
+			return engine.resolveType(t, engine.maxDepth)
+		}
+		return &APISchema{Type: "unknown", Description: "unable to resolve return expression"}
+	}
+}
+
+// resolveCompositeLiteralWithArgs 解析复合字面量并注入参数类型（字段值如果源自形参，按调用实参注入）
+func (engine *IrisResponseParsingEngine) resolveCompositeLiteralWithArgs(compLit *ast.CompositeLit, funcDecl *ast.FuncDecl, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
+	log.Printf("[DEBUG] 解析复合字面量并注入参数类型(Iris)\n")
+
+	// 直接走类型系统拿到整体结构
+	base := engine.resolveCompositeLiteral(compLit, pkg)
+	if base == nil {
+		base = &APISchema{Type: "object"}
+	}
+
+	// 遍历字面量字段，识别是否来自形参，并注入类型
+	for _, elt := range compLit.Elts {
+		kv, ok := elt.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		// 键名
+		var keyName string
+		switch k := kv.Key.(type) {
+		case *ast.Ident:
+			keyName = k.Name
+		case *ast.BasicLit:
+			keyName = strings.Trim(k.Value, "`\"")
+		}
+
+		// 值类型注入
+		injected := engine.resolveValueWithParameterInjection(kv.Value, funcDecl, callArgs, pkg)
+		if base.Properties == nil {
+			base.Properties = make(map[string]*APISchema)
+		}
+		if keyName != "" {
+			base.Properties[keyName] = injected
+		}
+	}
+
+	return base
+}
+
+// resolveValueWithParameterInjection 如果值是形参，注入调用时的实参类型
+func (engine *IrisResponseParsingEngine) resolveValueWithParameterInjection(valueExpr ast.Expr, funcDecl *ast.FuncDecl, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
+	switch v := valueExpr.(type) {
+	case *ast.Ident:
+		// 形参名 -> 实参类型
+		if idx := engine.getParamIndexByName(v.Name, funcDecl); idx >= 0 && idx < len(callArgs) {
+			argSchema := engine.analyzeResponseExpression(callArgs[idx], pkg)
+			return argSchema
+		}
+		// 其他变量
+		return engine.resolveIdentifier(v, pkg)
+	default:
+		if t := pkg.TypesInfo.TypeOf(valueExpr); t != nil {
+			return engine.resolveType(t, engine.maxDepth)
+		}
+		return &APISchema{Type: "any", Description: "interface{}"}
+	}
+}
+
+// resolveReturnedVariableWithArgs 尝试解析返回的本地变量（例如 response），并注入 Data 字段来源
+func (engine *IrisResponseParsingEngine) resolveReturnedVariableWithArgs(retIdent *ast.Ident, funcDecl *ast.FuncDecl, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
+	// 基础返回结构（使用返回类型）
+	baseType := engine.getReturnStructType(funcDecl, pkg)
+	var baseSchema *APISchema
+	if baseType != nil {
+		baseSchema = engine.resolveType(baseType, engine.maxDepth)
+	} else {
+		// 回退到标识符类型
+		baseSchema = engine.resolveIdentifier(retIdent, pkg)
+	}
+
+	if baseSchema == nil {
+		return nil
+	}
+
+	// 在函数体中查找对 retIdent.Data 的赋值
+	dataExpr := engine.findFieldAssignmentInFunction(funcDecl, retIdent.Name, "Data")
+
+	if dataExpr != nil {
+		// 尝试将 dataExpr 映射到调用实参
+		injectedSchema := engine.resolveAssignedValueWithArgs(dataExpr, funcDecl, callArgs, pkg)
+		if injectedSchema != nil {
+			if baseSchema.Properties == nil {
+				baseSchema.Properties = make(map[string]*APISchema)
+			}
+			dataKey := engine.findDataFieldKey(baseSchema.Properties)
+			if dataKey == "" {
+				dataKey = "data"
+			}
+			baseSchema.Properties[dataKey] = injectedSchema
+		}
+	}
+
+	return baseSchema
+}
+
+// findFieldAssignmentInFunction 查找对 variableName.fieldName 的最后一次赋值表达式
+func (engine *IrisResponseParsingEngine) findFieldAssignmentInFunction(funcDecl *ast.FuncDecl, variableName, fieldName string) ast.Expr {
+	var foundExpr ast.Expr
+	if funcDecl.Body == nil {
+		return nil
+	}
+	ast.Inspect(funcDecl.Body, func(node ast.Node) bool {
+		assign, ok := node.(*ast.AssignStmt)
+		if !ok {
+			return true
+		}
+		for i, lhs := range assign.Lhs {
+			if sel, ok := lhs.(*ast.SelectorExpr); ok {
+				if ident, ok := sel.X.(*ast.Ident); ok && ident.Name == variableName && sel.Sel.Name == fieldName {
+					// 记录对应的RHS
+					if i < len(assign.Rhs) {
+						foundExpr = assign.Rhs[i]
+					}
+				}
+			}
+		}
+		return true
+	})
+	return foundExpr
+}
+
+// resolveAssignedValueWithArgs 将赋值表达式解析为Schema，如果来源于形参或变长参数，按调用实参注入
+func (engine *IrisResponseParsingEngine) resolveAssignedValueWithArgs(valueExpr ast.Expr, funcDecl *ast.FuncDecl, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
+	switch v := valueExpr.(type) {
+	case *ast.IndexExpr:
+		// 处理 arg[idx] 这种变长参数访问
+		if ident, ok := v.X.(*ast.Ident); ok {
+			variadicName, fixedCount := engine.getVariadicParamInfo(funcDecl)
+			if variadicName != "" && ident.Name == variadicName {
+				if idxVal, ok := v.Index.(*ast.BasicLit); ok && idxVal.Kind == token.INT {
+					if n, err := strconv.Atoi(idxVal.Value); err == nil {
+						target := fixedCount + n
+						if target >= 0 && target < len(callArgs) {
+							return engine.analyzeResponseExpression(callArgs[target], pkg)
+						}
+					}
+				}
+			}
+		}
+		// 回退到类型系统
+		if t := pkg.TypesInfo.TypeOf(v); t != nil {
+			return engine.resolveType(t, engine.maxDepth)
+		}
+		return &APISchema{Type: "any"}
+	case *ast.Ident:
+		// 形参名 -> 实参
+		if idx := engine.getParamIndexByName(v.Name, funcDecl); idx >= 0 && idx < len(callArgs) {
+			return engine.analyzeResponseExpression(callArgs[idx], pkg)
+		}
+		return engine.resolveIdentifier(v, pkg)
+	default:
+		if t := pkg.TypesInfo.TypeOf(valueExpr); t != nil {
+			return engine.resolveType(t, engine.maxDepth)
+		}
+		return &APISchema{Type: "any"}
+	}
+}
+
+// getParamIndexByName 根据参数名获取其在调用实参中的索引（考虑变长参数）
+func (engine *IrisResponseParsingEngine) getParamIndexByName(name string, funcDecl *ast.FuncDecl) int {
+	if funcDecl.Type.Params == nil {
+		return -1
+	}
+
+	fixedIndex := 0
+	lastIdx := len(funcDecl.Type.Params.List) - 1
+	for i, p := range funcDecl.Type.Params.List {
+		count := 1
+		if len(p.Names) > 0 {
+			count = len(p.Names)
+		}
+
+		isVariadic := (i == lastIdx)
+		if isVariadic {
+			if _, ok := p.Type.(*ast.Ellipsis); ok {
+				// 变长参数组内的每个名字都指向同一个切片
+				for _, nm := range p.Names {
+					if nm.Name == name {
+						// 返回固定参数数量（变长实参从此处开始）
+						return fixedIndex
+					}
+				}
+				return -1
+			}
+		}
+
+		for j := 0; j < count; j++ {
+			nm := p.Names[j]
+			if nm.Name == name {
+				return fixedIndex + j
+			}
+		}
+		fixedIndex += count
+	}
+	return -1
+}
+
+// getVariadicParamInfo 返回变长参数名以及固定参数数量
+func (engine *IrisResponseParsingEngine) getVariadicParamInfo(funcDecl *ast.FuncDecl) (variadicName string, fixedParamCount int) {
+	if funcDecl.Type.Params == nil || len(funcDecl.Type.Params.List) == 0 {
+		return "", 0
+	}
+	fixed := 0
+	last := len(funcDecl.Type.Params.List) - 1
+	for i, p := range funcDecl.Type.Params.List {
+		if i == last {
+			if _, ok := p.Type.(*ast.Ellipsis); ok {
+				// 变长参数
+				if len(p.Names) > 0 {
+					return p.Names[0].Name, fixed
+				}
+				// 无参数名的情况极少见
+				return "", fixed
+			}
+		}
+		if len(p.Names) > 0 {
+			fixed += len(p.Names)
+		} else {
+			fixed += 1
+		}
+	}
+	return "", fixed
+}
+
 // resolveFunctionCall 解析函数调用
 func (engine *IrisResponseParsingEngine) resolveFunctionCall(callExpr *ast.CallExpr, pkg *packages.Package) *APISchema {
 	log.Printf("[DEBUG] 解析函数调用\n")
@@ -489,7 +793,7 @@ func (engine *IrisResponseParsingEngine) resolveFunctionCall(callExpr *ast.CallE
 		return engine.resolveFunctionByTypeInfo(callExpr, pkg)
 	}
 
-	return engine.analyzeFunctionReturn(funcDecl, callExpr.Args, pkg)
+	return engine.analyzeFunctionReturn(funcDecl, pkg)
 }
 
 // analyzeWrapperFunctionArgs 分析封装函数参数
@@ -648,20 +952,11 @@ func (analyzer *IrisRequestParamAnalyzer) analyzeParamCall(callExpr *ast.CallExp
 	methodName := analyzer.getMethodName(callExpr)
 	switch methodName {
 	case "ReadJSON":
-		// ctx.ReadJSON(&struct{}) - Body参数
 		return analyzer.analyzeReadJSONCall(callExpr)
-	case "Params":
-		// ctx.Params() - Query参数
-		return analyzer.analyzeParamsCall(callExpr)
 	case "URLParam", "URLParamDefault":
-		// ctx.URLParam("key") - 单个Query参数
 		return analyzer.analyzeURLParamCall(callExpr)
 	case "PostValue", "PostValueDefault":
-		// ctx.PostValue("key") - Form参数
 		return analyzer.analyzePostValueCall(callExpr)
-	case "GetHeader", "GetHeaders":
-		// ctx.GetHeader("key") - Header参数
-		return analyzer.analyzeHeaderCall(callExpr)
 	}
 
 	return nil
@@ -684,21 +979,6 @@ func (analyzer *IrisRequestParamAnalyzer) analyzeReadJSONCall(callExpr *ast.Call
 		ParamSchema: schema,
 		IsRequired:  true,
 		Source:      "ctx.ReadJSON",
-	}
-}
-
-// analyzeParamsCall 分析Params调用
-func (analyzer *IrisRequestParamAnalyzer) analyzeParamsCall(callExpr *ast.CallExpr) *IrisRequestParamInfo {
-	// ctx.Params() 返回所有query参数
-	return &IrisRequestParamInfo{
-		ParamType: "query",
-		ParamName: "query_params",
-		ParamSchema: &APISchema{
-			Type:        "object",
-			Description: "All query parameters from ctx.Params()",
-		},
-		IsRequired: false,
-		Source:     "ctx.Params",
 	}
 }
 
@@ -745,29 +1025,6 @@ func (analyzer *IrisRequestParamAnalyzer) analyzePostValueCall(callExpr *ast.Cal
 		},
 		IsRequired: false,
 		Source:     "ctx.PostValue",
-	}
-}
-
-// analyzeHeaderCall 分析Header调用
-func (analyzer *IrisRequestParamAnalyzer) analyzeHeaderCall(callExpr *ast.CallExpr) *IrisRequestParamInfo {
-	if len(callExpr.Args) < 1 {
-		return nil
-	}
-
-	headerName := analyzer.extractStringFromExpr(callExpr.Args[0])
-	if headerName == "" {
-		return nil
-	}
-
-	return &IrisRequestParamInfo{
-		ParamType: "header",
-		ParamName: headerName,
-		ParamSchema: &APISchema{
-			Type:        "string",
-			Description: "Header value from ctx.GetHeader()",
-		},
-		IsRequired: false,
-		Source:     "ctx.GetHeader",
 	}
 }
 
@@ -1037,7 +1294,7 @@ func (engine *IrisResponseParsingEngine) resolveFunctionByTypeInfo(callExpr *ast
 	return &APISchema{Type: "unknown", Description: "unable to resolve function"}
 }
 
-func (engine *IrisResponseParsingEngine) analyzeFunctionReturn(funcDecl *ast.FuncDecl, callArgs []ast.Expr, pkg *packages.Package) *APISchema {
+func (engine *IrisResponseParsingEngine) analyzeFunctionReturn(funcDecl *ast.FuncDecl, pkg *packages.Package) *APISchema {
 	log.Printf("[DEBUG] 分析函数 %s 的返回语句\n", funcDecl.Name.Name)
 
 	if funcDecl.Body == nil {
@@ -1107,9 +1364,9 @@ func (engine *IrisResponseParsingEngine) resolveSelectorExprRecursive(selExpr *a
 		log.Printf("[DEBUG] 解析嵌套选择器\n")
 		baseSchema = engine.resolveSelectorExprRecursive(x, pkg)
 	case *ast.CallExpr:
-		// 函数调用结果的字段访问
-		log.Printf("[DEBUG] 解析函数调用结果的字段访问\n")
-		baseSchema = engine.resolveFunctionCall(x, pkg)
+		// 函数调用结果的字段访问（递归）
+		log.Printf("[DEBUG] 解析函数调用结果的字段访问(递归)\n")
+		baseSchema = engine.resolveFunctionCallRecursive(x, pkg)
 	default:
 		log.Printf("[DEBUG] 基础表达式类型: %T\n", x)
 		baseSchema = engine.analyzeResponseExpression(selExpr.X, pkg)

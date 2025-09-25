@@ -9,7 +9,8 @@ import (
 
 // APIInfo 代表整个API的结构化信息
 type APIInfo struct {
-	Routes []RouteInfo `json:"routes"`
+	APINumber int         `json:"api_number,omitempty"`
+	Routes    []RouteInfo `json:"routes"`
 }
 
 // RouteInfo 代表单个API路由的信息

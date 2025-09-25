@@ -1,4 +1,4 @@
-// 文件位置: cmd/my-tool/main.go
+// 文件位置: cmd/api-finder/main.go
 package main
 
 import (
@@ -144,6 +144,7 @@ func filterRoutesByPath(apiInfo *models.APIInfo, pathFilter string) *models.APII
 
 // printRoutesToTerminal 以JSON格式打印路由到终端
 func printRoutesToTerminal(apiInfo *models.APIInfo) {
+	apiInfo.APINumber = len(apiInfo.Routes)
 	output, err := json.MarshalIndent(apiInfo, "", "  ")
 	if err != nil {
 		log.Fatalf("JSON序列化失败: %v", err)

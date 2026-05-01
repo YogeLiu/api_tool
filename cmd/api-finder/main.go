@@ -1,154 +1,92 @@
-// 文件位置: cmd/api-finder/main.go
 package main
 
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/YogeLiu/api-tool/helper"
 	"github.com/YogeLiu/api-tool/pkg/analyzer"
 	"github.com/YogeLiu/api-tool/pkg/exporter"
-	"github.com/YogeLiu/api-tool/pkg/extractor"
 	"github.com/YogeLiu/api-tool/pkg/models"
 	"github.com/YogeLiu/api-tool/pkg/parser"
 )
 
 func main() {
-	// 设置日志文件
-	logPath := "/tmp/var/log"
-	os.MkdirAll(logPath, 0755)
-	logFile, err := os.OpenFile(filepath.Join(logPath, "api-tool.log"), os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatalf("无法打开日志文件: %v", err)
-	}
-	defer logFile.Close()
-	log.SetOutput(logFile)
-
-	projectPath := flag.String("path", ".", "要分析的 Go 项目的根路径。")
-	framework := flag.String("framework", "gin", "目标框架 (gin 或 iris)。")
-	outputFormat := flag.String("format", "json", "输出格式 (json, swagger)。")
-	outputFile := flag.String("output", "", "输出文件路径 (可选)。")
-	projectName := flag.String("project", "", "项目名称 (可选)。")
-	pathFilter := flag.String("filter", "", "路径过滤器，只显示包含指定路径的路由 (可选)。")
+	projectPath := flag.String("path", ".", "Go 项目根路径")
+	outputFormat := flag.String("format", "json", "输出格式: json 或 swagger")
+	outputFile := flag.String("output", "", "输出文件路径，为空则打印到 stdout")
+	projectName := flag.String("project", "", "项目名称（仅 swagger 使用，默认取目录名）")
+	pathFilter := flag.String("filter", "", "仅输出 path 包含该子串的路由")
 	flag.Parse()
 
-	// 检查是否有位置参数，如果有则使用位置参数作为项目路径
-	args := flag.Args()
-	if len(args) > 0 {
+	if args := flag.Args(); len(args) > 0 {
 		*projectPath = args[0]
 	}
 
-	log.Printf("项目路径: %s", *projectPath)
-
-	log.Println("1. 解析项目代码...")
-	proj, err := parser.ParseProject(*projectPath)
+	pkgs, err := parser.Load(*projectPath)
 	if err != nil {
-		log.Fatalf("项目解析失败: %v", err)
+		log.Fatalf("加载项目失败: %v", err)
 	}
 
-	log.Println("2. 选择框架提取器:", *framework)
-	var ext extractor.Extractor
-	var responseParsingEngine helper.ResponseEngine
-	switch *framework {
-	case "gin":
-		ext = extractor.NewGinExtractor(proj)
-		responseParsingEngine = helper.NewResponseParsingEngine(proj.Packages)
-	case "iris":
-		ext = extractor.NewIrisExtractor(proj)
-		responseParsingEngine = helper.NewIrisResponseParsingEngine(proj.Packages)
-	default:
-		log.Fatalf("不支持的框架: %s", *framework)
-	}
-
-	log.Println("3. 运行核心分析器...")
-	coreAnalyzer := analyzer.NewAnalyzer(*projectPath, proj, responseParsingEngine, ext)
-	apiInfo, err := coreAnalyzer.Analyze()
+	apiInfo, err := analyzer.Analyze(pkgs)
 	if err != nil {
-		log.Fatalf("核心分析失败: %v", err)
+		log.Fatalf("分析失败: %v", err)
 	}
 
-	// 如果指定了路径过滤器，过滤路由
 	if *pathFilter != "" {
-		apiInfo = filterRoutesByPath(apiInfo, *pathFilter)
-		log.Printf("路径过滤器 '%s' 应用后，剩余路由数: %d", *pathFilter, len(apiInfo.Routes))
+		apiInfo = filterByPath(apiInfo, *pathFilter)
 	}
-
-	log.Printf("4. 生成 %s 格式输出...", *outputFormat)
 
 	switch *outputFormat {
 	case "swagger":
-		// Swagger格式导出
-		if err := exportToSwagger(apiInfo, *projectPath, *projectName, *outputFile); err != nil {
-			log.Fatalf("Swagger导出失败: %v", err)
+		if err := exportSwagger(apiInfo, *projectPath, *projectName, *outputFile); err != nil {
+			log.Fatalf("Swagger 导出失败: %v", err)
 		}
 	default:
-		// 默认JSON格式输出
-		output, err := json.MarshalIndent(apiInfo, "", "  ")
-		if err != nil {
-			log.Fatalf("JSON序列化失败: %v", err)
-		}
-
-		if *outputFile != "" {
-			// 保存到文件
-			if err := os.WriteFile(*outputFile, output, 0644); err != nil {
-				log.Fatalf("保存文件失败: %v", err)
-			}
-			log.Printf("✅ JSON输出已保存到: %s", *outputFile)
-		} else {
-			// 输出到控制台
-			printRoutesToTerminal(apiInfo)
+		if err := writeJSON(apiInfo, *outputFile); err != nil {
+			log.Fatalf("JSON 输出失败: %v", err)
 		}
 	}
-
-	log.Println("\n分析完成。")
 }
 
-// exportToSwagger 导出为Swagger格式
-func exportToSwagger(apiInfo *models.APIInfo, projectPath, projectName, outputFile string) error {
-	// 如果没有指定项目名称，使用项目路径的最后一部分
+func writeJSON(info *models.APIInfo, outputFile string) error {
+	data, err := json.MarshalIndent(info, "", "  ")
+	if err != nil {
+		return err
+	}
+	if outputFile == "" {
+		_, err := os.Stdout.Write(data)
+		return err
+	}
+	return os.WriteFile(outputFile, data, 0644)
+}
+
+func filterByPath(info *models.APIInfo, sub string) *models.APIInfo {
+	var routes []models.RouteInfo
+	for _, r := range info.Routes {
+		if strings.Contains(r.Path, sub) {
+			routes = append(routes, r)
+		}
+	}
+	return &models.APIInfo{Routes: routes, APINumber: len(routes)}
+}
+
+func exportSwagger(info *models.APIInfo, projectPath, projectName, outputFile string) error {
 	if projectName == "" {
 		projectName = filepath.Base(projectPath)
 	}
-
-	// 确定输出目录
 	outputDir := "./swagger_exports"
 	if outputFile != "" {
 		outputDir = filepath.Dir(outputFile)
 	}
-
-	// 创建Swagger导出器
-	swaggerExporter := exporter.NewSwaggerExporter(projectName, "1.0.0", "http://localhost:8080", outputDir, true)
-
-	// 执行导出
-	return swaggerExporter.Export(apiInfo)
-}
-
-// filterRoutesByPath 根据路径过滤器过滤路由
-func filterRoutesByPath(apiInfo *models.APIInfo, pathFilter string) *models.APIInfo {
-	var filteredRoutes []models.RouteInfo
-
-	for _, route := range apiInfo.Routes {
-		if strings.Contains(route.Path, pathFilter) {
-			filteredRoutes = append(filteredRoutes, route)
-		}
+	exp := exporter.NewSwaggerExporter(projectName, "1.0.0", "http://localhost:8080", outputDir, true)
+	if err := exp.Export(info); err != nil {
+		return err
 	}
-
-	return &models.APIInfo{
-		Routes: filteredRoutes,
-	}
-}
-
-// printRoutesToTerminal 以JSON格式打印路由到终端
-func printRoutesToTerminal(apiInfo *models.APIInfo) {
-	apiInfo.APINumber = len(apiInfo.Routes)
-	output, err := json.MarshalIndent(apiInfo, "", "  ")
-	if err != nil {
-		log.Fatalf("JSON序列化失败: %v", err)
-	}
-
-	os.Stdout.Write(output)
+	fmt.Printf("Swagger 已导出到 %s\n", outputDir)
+	return nil
 }
